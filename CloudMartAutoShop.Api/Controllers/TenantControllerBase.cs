@@ -1,0 +1,3 @@
+using System.Security.Claims; using Microsoft.AspNetCore.Mvc;
+namespace CloudMartAutoShop.Api.Controllers;
+public abstract class TenantControllerBase:ControllerBase { protected int BusinessId=>int.TryParse(User.FindFirst("business_id")?.Value,out var x)?x:throw new UnauthorizedAccessException("Business context is missing."); protected int UserId=>int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value??User.FindFirst("sub")?.Value,out var x)?x:throw new UnauthorizedAccessException("User context is missing."); protected string UserName=>User.FindFirst("user_name")?.Value??User.Identity?.Name??"Unknown"; }

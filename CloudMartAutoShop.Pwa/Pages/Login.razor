@@ -1,0 +1,64 @@
+@page "/login"
+
+@inject ApiService Api
+@inject NavigationManager Nav
+
+<PageTitle>Login - CloudMart Auto Shop</PageTitle>
+
+<div class="panel login">
+    <h1>Welcome back</h1>
+    <p class="subtitle">Sign in to Auto Shop Manager</p>
+
+    <EditForm Model="model" OnValidSubmit="Submit">
+        <DataAnnotationsValidator />
+
+        <div class="form-grid">
+            <div class="full">
+                <label>Email</label>
+                <InputText @bind-Value="model.Email" />
+            </div>
+
+            <div class="full">
+                <label>Password</label>
+                <InputText type="password" @bind-Value="model.Password" />
+            </div>
+        </div>
+
+        @if (error != null)
+        {
+            <div class="error">@error</div>
+        }
+
+        <button class="btn" type="submit">Sign In</button>
+    </EditForm>
+</div>
+
+@code {
+    private LoginRequest model = new();
+    private string? error;
+
+    private async Task Submit()
+    {
+        error = null;
+
+        var x = await Api.Login(model);
+
+        if (x == null)
+        {
+            error = "Invalid email or password.";
+            return;
+        }
+
+        if (string.Equals(
+            x.Role,
+            "Technician",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            Nav.NavigateTo("my-repair-orders", forceLoad: true);
+        }
+        else
+        {
+            Nav.NavigateTo("", forceLoad: true);
+        }
+    }
+}

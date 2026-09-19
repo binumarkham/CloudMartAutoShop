@@ -1,0 +1,203 @@
+@inject ApiService Api
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<nav class="side-nav">
+    @if (isLoggedIn && isTechnician)
+    {
+        <NavLink href="my-repair-orders">
+            <span class="nav-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="5" y="4" width="14" height="17" rx="2" />
+                    <path d="M9 4V2h6v2M8 9h8M8 13h8M8 17h5" />
+                </svg>
+            </span>
+            <span>My Repair Orders</span>
+        </NavLink>
+    }
+    else
+    {
+        <NavLink href="" Match="NavLinkMatch.All">
+            <span class="nav-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 11.5 12 4l9 7.5" />
+                    <path d="M5.5 10.5V20h13v-9.5" />
+                    <path d="M9.5 20v-6h5v6" />
+                </svg>
+            </span>
+            <span>Dashboard</span>
+        </NavLink>
+
+        <NavLink href="customers">
+            <span class="nav-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="9" cy="8" r="3" />
+                    <path d="M3.5 19c.5-4 2.5-6 5.5-6s5 2 5.5 6" />
+                    <circle cx="17" cy="9" r="2.5" />
+                    <path d="M15.5 14c3.1-.4 5 1.4 5.5 5" />
+                </svg>
+            </span>
+            <span>Customers</span>
+        </NavLink>
+
+        <NavLink href="vehicles">
+            <span class="nav-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 15V10l2-4h12l2 4v5" />
+                    <path d="M3 15h18v3H3z" />
+                    <circle cx="7" cy="18" r="1.5" />
+                    <circle cx="17" cy="18" r="1.5" />
+                    <path d="M6 10h12" />
+                </svg>
+            </span>
+            <span>Vehicles</span>
+        </NavLink>
+
+        <NavLink href="repair-orders">
+            <span class="nav-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="5" y="4" width="14" height="17" rx="2" />
+                    <path d="M9 4V2h6v2M8 9h8M8 13h8M8 17h5" />
+                </svg>
+            </span>
+            <span>Repair Orders</span>
+        </NavLink>
+
+        <NavLink href="suppliers">
+            <span class="nav-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 7h11v10H3zM14 10h4l3 3v4h-7z" />
+                    <circle cx="7" cy="18" r="2" />
+                    <circle cx="18" cy="18" r="2" />
+                </svg>
+            </span>
+            <span>Suppliers</span>
+        </NavLink>
+
+        <NavLink href="reports">
+            <span class="nav-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 20V10M10 20V4M15 20v-7M20 20V7" />
+                    <path d="M3 20h19" />
+                </svg>
+            </span>
+            <span>Reports</span>
+        </NavLink>
+
+        @if (isAdministrator)
+        {
+            <NavLink href="users">
+                <span class="nav-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="8" cy="8" r="3" />
+                        <circle cx="17" cy="9" r="2.5" />
+                        <path d="M3 20c.5-4 2.2-6 5-6s4.5 2 5 6M14 14c3.5-.5 5.8 1.5 6.5 5" />
+                    </svg>
+                </span>
+                <span>Users</span>
+            </NavLink>
+        }
+    }
+
+    <div class="nav-account">
+        @if (isLoggedIn)
+        {
+            <div class="account-summary">
+                <span class="nav-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="8" r="3.5" />
+                        <path d="M5 20c.7-4.3 3-6.5 7-6.5s6.3 2.2 7 6.5" />
+                    </svg>
+                </span>
+
+                <span class="account-text">
+                    <strong>@userName</strong>
+                    <small>@businessName</small>
+                </span>
+            </div>
+
+            <button class="nav-action" @onclick="Logout">
+                <span class="nav-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M10 4H5v16h5M14 8l4 4-4 4M8 12h10" />
+                    </svg>
+                </span>
+                <span>Logout</span>
+            </button>
+        }
+        else
+        {
+            <NavLink href="login">
+                <span class="nav-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M14 4h5v16h-5M10 8l4 4-4 4M4 12h10" />
+                    </svg>
+                </span>
+                <span>Login</span>
+            </NavLink>
+        }
+    </div>
+</nav>
+
+@code {
+    private bool isLoggedIn;
+    private bool isTechnician;
+    private bool isAdministrator;
+
+    private string userName = "";
+    private string businessName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await JS.InvokeAsync<string?>(
+            "localStorage.getItem",
+            "authToken");
+
+        isLoggedIn = !string.IsNullOrWhiteSpace(token);
+
+        if (isLoggedIn)
+        {
+            userName =
+                await JS.InvokeAsync<string?>(
+                    "localStorage.getItem",
+                    "userName")
+                ?? "User";
+
+            businessName =
+                await JS.InvokeAsync<string?>(
+                    "localStorage.getItem",
+                    "businessName")
+                ?? "";
+
+            var role =
+                await JS.InvokeAsync<string?>(
+                    "localStorage.getItem",
+                    "userRole")
+                ?? "";
+
+            isTechnician =
+                string.Equals(
+                    role,
+                    "Technician",
+                    StringComparison.OrdinalIgnoreCase);
+
+            isAdministrator =
+                string.Equals(
+                    role,
+                    "Administrator",
+                    StringComparison.OrdinalIgnoreCase)
+                ||
+                string.Equals(
+                    role,
+                    "Admin",
+                    StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private async Task Logout()
+    {
+        await Api.Logout();
+
+        Nav.NavigateTo("login", forceLoad: true);
+    }
+}

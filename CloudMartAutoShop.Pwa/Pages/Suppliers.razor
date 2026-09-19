@@ -1,0 +1,52 @@
+@page "/suppliers"
+@inject ApiService Api
+
+<PageTitle>Suppliers - CloudMart Auto Shop</PageTitle>
+<h1>Suppliers</h1>
+<p class="subtitle">Manage parts and service vendors</p>
+
+<div class="panel">
+    <div class="toolbar"><div><strong>Supplier List</strong><span class="list-count">@items.Count supplier(s)</span></div><button class="btn" type="button" @onclick="NewSupplier">+ New Supplier</button></div>
+    @if (!string.IsNullOrWhiteSpace(message)) { <div class="alert success">@message</div> }
+    @if (!string.IsNullOrWhiteSpace(error)) { <div class="alert error">@error</div> }
+
+    @if (showForm)
+    {
+        <div class="edit-panel">
+            <div class="form-header"><div><h3>@(edit.Id == 0 ? "New Supplier" : "Edit Supplier")</h3><p>Supplier contact and address information</p></div><button type="button" class="icon-button" title="Close" @onclick="Cancel">×</button></div>
+            <EditForm Model="edit" OnSubmit="Save">
+                <div class="form-grid">
+                    <div><label>Name <span class="required">*</span></label><InputText class="form-control" @bind-Value="edit.Name" /></div>
+                    <div><label>Contact Name</label><InputText class="form-control" @bind-Value="edit.ContactName" /></div>
+                    <div><label>Phone</label><InputText class="form-control" @bind-Value="edit.Phone" /></div>
+                    <div><label>Email</label><InputText class="form-control" @bind-Value="edit.Email" /></div>
+                    <div class="full"><label>Address</label><InputText class="form-control" @bind-Value="edit.Address" /></div>
+                    <div><label>City</label><InputText class="form-control" @bind-Value="edit.City" /></div>
+                    <div><label>Province / State</label><InputText class="form-control" @bind-Value="edit.ProvinceState" /></div>
+                    <div><label>Postal / ZIP Code</label><InputText class="form-control" @bind-Value="edit.PostalCode" /></div>
+                    <div><label>Status</label><InputSelect class="form-control" @bind-Value="edit.IsActive"><option value="true">Active</option><option value="false">Inactive</option></InputSelect></div>
+                    <div class="full"><label>Notes</label><InputTextArea class="form-control notes" @bind-Value="edit.Notes" /></div>
+                </div>
+                <div class="form-actions"><button class="btn" type="submit" disabled="@saving">@(saving ? "Saving..." : edit.Id == 0 ? "Create Supplier" : "Save Supplier")</button><button class="btn secondary" type="button" @onclick="Cancel">Cancel</button></div>
+            </EditForm>
+        </div>
+    }
+
+    <div class="table-wrap"><table><thead><tr><th>Name</th><th>Contact</th><th>Phone</th><th>Email</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+    @if (loading) { <tr><td colspan="7" class="empty-row">Loading suppliers...</td></tr> }
+    else if (items.Count == 0) { <tr><td colspan="7" class="empty-row">No suppliers have been added yet.</td></tr> }
+    else { @foreach (var x in items) { <tr><td><strong>@x.Name</strong></td><td>@Display(x.ContactName)</td><td>@Display(x.Phone)</td><td>@Display(x.Email)</td><td>@Location(x)</td><td><span class="badge">@(x.IsActive ? "Active" : "Inactive")</span></td><td class="row-actions"><button class="action-button" type="button" title="Edit supplier" @onclick="() => Edit(x)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button><button class="btn secondary" type="button" @onclick="() => ToggleActive(x)">@(x.IsActive ? "Deactivate" : "Activate")</button></td></tr> } }
+    </tbody></table></div>
+</div>
+
+@code {
+    private List<SupplierDto> items = []; private SupplierDto edit = NewModel(); private bool loading, saving, showForm; private string? message, error;
+    protected override async Task OnInitializedAsync() => await Load();
+    private async Task Load(){ loading=true; try{items=await Api.Get<List<SupplierDto>>("api/Suppliers")??[];}catch(Exception ex){error="Unable to load suppliers. "+ex.Message;}finally{loading=false;} }
+    private void NewSupplier(){message=null;error=null;edit=NewModel();showForm=true;}
+    private void Edit(SupplierDto x){message=null;error=null;edit=new SupplierDto{Id=x.Id,Name=x.Name,ContactName=x.ContactName,Phone=x.Phone,Email=x.Email,Address=x.Address,City=x.City,ProvinceState=x.ProvinceState,PostalCode=x.PostalCode,Notes=x.Notes,IsActive=x.IsActive,CreatedAt=x.CreatedAt};showForm=true;}
+    private async Task Save(){message=null;error=null;if(string.IsNullOrWhiteSpace(edit.Name)){error="Supplier name is required.";return;}saving=true;try{var r=new SupplierSaveRequest{Name=edit.Name.Trim(),ContactName=Clean(edit.ContactName),Phone=Clean(edit.Phone),Email=Clean(edit.Email),Address=Clean(edit.Address),City=Clean(edit.City),ProvinceState=Clean(edit.ProvinceState),PostalCode=Clean(edit.PostalCode),Notes=Clean(edit.Notes),IsActive=edit.IsActive};var ok=edit.Id==0?await Api.Post("api/Suppliers",r):await Api.Put($"api/Suppliers/{edit.Id}",r);if(!ok){error="The supplier could not be saved.";return;}message=edit.Id==0?"Supplier created successfully.":"Supplier updated successfully.";showForm=false;await Load();}catch(Exception ex){error="The supplier could not be saved. "+ex.Message;}finally{saving=false;}}
+    private async Task ToggleActive(SupplierDto x){message=null;error=null;var ok=await Api.Patch($"api/Suppliers/{x.Id}/active",new { IsActive=!x.IsActive });if(!ok){error="Supplier status could not be changed.";return;}message=!x.IsActive?"Supplier activated.":"Supplier deactivated.";await Load();}
+    private void Cancel(){showForm=false;error=null;edit=NewModel();}
+    private static SupplierDto NewModel()=>new(){IsActive=true}; private static string Display(string? v)=>string.IsNullOrWhiteSpace(v)?"—":v; private static string? Clean(string? v)=>string.IsNullOrWhiteSpace(v)?null:v.Trim(); private static string Location(SupplierDto x)=>string.Join(", ",new[]{x.City,x.ProvinceState}.Where(v=>!string.IsNullOrWhiteSpace(v))) is var s && s.Length>0?s:"—";
+}

@@ -1,0 +1,51 @@
+@page "/reports"
+@inject ApiService Api
+
+<PageTitle>Reports - CloudMart Auto Shop</PageTitle>
+<h1>Reports</h1>
+<p class="subtitle">Operational, sales, payment, parts and technician reports</p>
+
+<div class="panel">
+    <div class="form-grid">
+        <div><label>Report</label><InputSelect class="form-control" @bind-Value="report"><option value="outstanding">Outstanding Balances</option><option value="repair-orders">Repair Orders</option><option value="sales">Sales Summary</option><option value="payments">Payments Received</option><option value="parts">Parts Usage / Sales</option><option value="technician-hours">Technician Labor Hours</option></InputSelect></div>
+        <div><label>From</label><InputDate class="form-control" @bind-Value="from" /></div>
+        <div><label>To</label><InputDate class="form-control" @bind-Value="to" /></div>
+        @if (report == "repair-orders") { <div><label>Status</label><InputSelect class="form-control" @bind-Value="status"><option>All</option><option>Open</option><option>In Progress</option><option>Waiting for Parts</option><option>Completed</option><option>Invoiced</option><option>Cancelled</option></InputSelect></div> }
+    </div>
+    <div class="form-actions"><button class="btn" type="button" disabled="@loading" @onclick="RunReport">@(loading ? "Loading..." : "Run Report")</button></div>
+    @if (!string.IsNullOrWhiteSpace(error)) { <div class="alert error">@error</div> }
+</div>
+
+@if (report == "outstanding")
+{
+    <div class="panel"><div class="section-heading"><div><h3>Outstanding Balances</h3><p>Repair orders with an unpaid balance</p></div><strong>@outstanding.Sum(x=>x.Balance).ToString("C") outstanding</strong></div><div class="table-wrap"><table><thead><tr><th>RO Number</th><th>Invoice</th><th>Customer</th><th>Date</th><th>Total</th><th>Paid</th><th>Balance</th></tr></thead><tbody>@foreach(var x in outstanding){<tr><td>@x.RepairOrderNumber</td><td>@Display(x.InvoiceNumber)</td><td>@x.Customer</td><td>@x.OpenedDate.ToString("yyyy-MM-dd")</td><td>@x.TotalAmount.ToString("C")</td><td>@x.AmountPaid.ToString("C")</td><td><strong>@x.Balance.ToString("C")</strong></td></tr>}</tbody></table></div></div>
+}
+else if (report == "repair-orders")
+{
+    <div class="panel"><div class="section-heading"><div><h3>Repair Order Summary</h3><p>@repairOrders.Count repair order(s)</p></div></div><div class="table-wrap"><table><thead><tr><th>RO Number</th><th>Date</th><th>Customer</th><th>Vehicle</th><th>Status</th><th>Total</th><th>Paid</th><th>Balance</th></tr></thead><tbody>@foreach(var x in repairOrders){<tr><td>@x.RepairOrderNumber</td><td>@x.OpenedDate.ToString("yyyy-MM-dd")</td><td>@x.Customer</td><td>@x.Vehicle</td><td>@x.Status</td><td>@x.TotalAmount.ToString("C")</td><td>@x.AmountPaid.ToString("C")</td><td>@x.Balance.ToString("C")</td></tr>}</tbody></table></div></div>
+}
+else if (report == "sales")
+{
+    <div class="panel"><div class="ro-summary"><div class="summary-item"><span>Labor</span><strong>@sales.TotalLabor.ToString("C")</strong></div><div class="summary-item"><span>Parts</span><strong>@sales.TotalParts.ToString("C")</strong></div><div class="summary-item"><span>Tax</span><strong>@sales.TotalTax.ToString("C")</strong></div><div class="summary-item"><span>Total Sales</span><strong>@sales.TotalSales.ToString("C")</strong></div><div class="summary-item"><span>Paid</span><strong>@sales.TotalPaid.ToString("C")</strong></div></div><div class="table-wrap"><table><thead><tr><th>RO Number</th><th>Date</th><th>Customer</th><th>Labor</th><th>Parts</th><th>Tax</th><th>Total</th><th>Paid</th></tr></thead><tbody>@foreach(var x in sales.Rows){<tr><td>@x.RepairOrderNumber</td><td>@x.OpenedDate.ToString("yyyy-MM-dd")</td><td>@x.Customer</td><td>@x.LaborSubtotal.ToString("C")</td><td>@x.PartsSubtotal.ToString("C")</td><td>@x.TaxAmount.ToString("C")</td><td>@x.TotalAmount.ToString("C")</td><td>@x.AmountPaid.ToString("C")</td></tr>}</tbody></table></div></div>
+}
+else if (report == "payments")
+{
+    <div class="panel"><div class="section-heading"><div><h3>Payments Received</h3><p>@payments.Count payment(s)</p></div><strong>@payments.Sum(x=>x.Amount).ToString("C") received</strong></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>RO Number</th><th>Customer</th><th>Method</th><th>Reference</th><th>Amount</th></tr></thead><tbody>@foreach(var x in payments){<tr><td>@x.PaymentDate.ToString("yyyy-MM-dd")</td><td>@x.RepairOrderNumber</td><td>@x.Customer</td><td>@x.PaymentMethod</td><td>@Display(x.ReferenceNumber)</td><td>@x.Amount.ToString("C")</td></tr>}</tbody></table></div></div>
+}
+else if (report == "parts")
+{
+    <div class="panel"><div class="section-heading"><div><h3>Parts Usage / Sales</h3><p>@parts.Count part line(s)</p></div><strong>@parts.Sum(x=>x.LineTotal).ToString("C") sales</strong></div><div class="table-wrap"><table><thead><tr><th>Supplier</th><th>RO Number</th><th>Part Number</th><th>Description</th><th>Qty</th><th>Unit Cost</th><th>Unit Price</th><th>Line Total</th></tr></thead><tbody>@foreach(var x in parts){<tr><td>@Display(x.Supplier)</td><td>@x.RepairOrderNumber</td><td>@Display(x.PartNumber)</td><td>@x.Description</td><td>@x.Quantity.ToString("0.###")</td><td>@x.UnitCost.ToString("C")</td><td>@x.UnitPrice.ToString("C")</td><td>@x.LineTotal.ToString("C")</td></tr>}</tbody></table></div></div>
+}
+else if (report == "technician-hours")
+{
+    <div class="panel"><div class="section-heading"><div><h3>Technician Labor Hours</h3><p>Recorded labor by technician</p></div><strong>@technicianHours.Sum(x=>x.Hours).ToString("0.##") hours</strong></div><div class="table-wrap"><table><thead><tr><th>Technician</th><th>Entries</th><th>Hours</th><th>Labor Amount</th></tr></thead><tbody>@foreach(var x in technicianHours){<tr><td>@x.Technician</td><td>@x.Entries</td><td>@x.Hours.ToString("0.##")</td><td>@x.LaborAmount.ToString("C")</td></tr>}</tbody></table></div></div>
+}
+
+@code {
+    private string report="outstanding", status="All"; private DateTime from=DateTime.Today.AddDays(-30), to=DateTime.Today; private bool loading; private string? error;
+    private List<OutstandingDto> outstanding=[]; private List<RepairOrderReportDto> repairOrders=[]; private SalesReportDto sales=new(); private List<PaymentReportDto> payments=[]; private List<PartsReportDto> parts=[]; private List<TechnicianHoursReportDto> technicianHours=[];
+    protected override async Task OnInitializedAsync()=>await RunReport();
+    private string Dates()=> $"from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
+    private async Task RunReport(){loading=true;error=null;try{switch(report){case "outstanding":outstanding=await Api.Get<List<OutstandingDto>>("api/Reports/outstanding")??[];break;case "repair-orders":repairOrders=await Api.Get<List<RepairOrderReportDto>>($"api/Reports/repair-orders?{Dates()}&status={Uri.EscapeDataString(status)}")??[];break;case "sales":sales=await Api.Get<SalesReportDto>($"api/Reports/sales?{Dates()}")??new();break;case "payments":payments=await Api.Get<List<PaymentReportDto>>($"api/Reports/payments?{Dates()}")??[];break;case "parts":parts=await Api.Get<List<PartsReportDto>>($"api/Reports/parts?{Dates()}")??[];break;case "technician-hours":technicianHours=await Api.Get<List<TechnicianHoursReportDto>>($"api/Reports/technician-hours?{Dates()}")??[];break;}}catch(Exception ex){error="Unable to load report. "+ex.Message;}finally{loading=false;}}
+    private static string Display(string? value)=>string.IsNullOrWhiteSpace(value)?"—":value;
+}

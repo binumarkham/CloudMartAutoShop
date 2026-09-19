@@ -1,0 +1,1484 @@
+@page "/repair-orders"
+@inject ApiService Api
+
+<h1>Repair Orders</h1>
+<p class="subtitle">Track work from intake through payment</p>
+
+<div class="panel">
+
+    <div class="toolbar">
+        <div>
+            <strong>Repair Order List</strong>
+            <span class="list-count">@items.Count repair order(s)</span>
+        </div>
+
+        <button type="button"
+                class="btn"
+                @onclick="NewRepairOrder">
+            + New Repair Order
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="alert success">
+            @message
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert error">
+            @error
+        </div>
+    }
+
+    @if (showForm)
+    {
+        <div class="edit-panel">
+
+            <div class="form-header">
+                <div>
+                    <h3>
+                        @(edit.Id == 0
+                                            ? "New Repair Order"
+                                            : $"Edit Repair Order {edit.RepairOrderNumber}")
+                                                                                        </h3>
+
+                    <p>
+                        @(edit.Id == 0
+                                            ? "Create a repair order for an active customer and vehicle."
+                                            : "Update repair order information and job status.")
+                </p>
+            </div>
+
+                <button type="button"
+                        class="icon-button"
+                        title="Close"
+                        @onclick="CancelEdit">
+                    ×
+                </button>
+            </div>
+
+            <EditForm Model="edit"
+                      OnSubmit="Save">
+
+                <div class="form-grid">
+
+                    <div>
+                        <label>
+                            Customer
+                            <span class="required">*</span>
+                        </label>
+
+                        <InputSelect TValue="int"
+                                     class="form-control"
+                                     Value="@edit.CustomerId"
+                                     ValueChanged="@((int value) => CustomerChanged(value))"
+                                     ValueExpression="@(() => edit.CustomerId)">
+
+                            <option value="0">
+                                Select customer
+                            </option>
+
+                        @foreach (var customer in SelectableCustomers())
+                            {
+                                <option value="@customer.Id">
+                                    @customer.Name
+                                    @(!customer.IsActive ? " (Inactive)" : "")
+                                </option>
+                            }
+
+                        </InputSelect>
+                    </div>
+
+                    <div>
+                        <label>
+                            Vehicle
+                            <span class="required">*</span>
+                        </label>
+
+                        <InputSelect class="form-control"
+                                     @bind-Value="edit.VehicleId">
+
+                            <option value="0">
+                                Select vehicle
+                            </option>
+
+                            @foreach (var vehicle in SelectableVehicles())
+                            {
+                                <option value="@vehicle.Id">
+                                    @VehicleOption(vehicle)
+                                    @(!vehicle.IsActive ? " (Inactive)" : "")
+                                </option>
+                            }
+
+                        </InputSelect>
+                    </div>
+
+                    <div>
+                        <label>
+                            Repair Order Number
+                            <span class="required">*</span>
+                        </label>
+
+                        <InputText class="form-control"
+                                   @bind-Value="edit.RepairOrderNumber" />
+                    </div>
+
+                    <div>
+                        <label>Invoice Number</label>
+
+                        <InputText class="form-control"
+                                   @bind-Value="edit.InvoiceNumber" />
+                    </div>
+
+                    <div>
+                        <label>Opened Date</label>
+
+                        <InputDate class="form-control"
+                                   @bind-Value="edit.OpenedDate" />
+                    </div>
+
+                    <div>
+                        <label>Status</label>
+
+                        <InputSelect class="form-control"
+                                     @bind-Value="edit.Status">
+
+                            @foreach (var status in statuses)
+                            {
+                                <option value="@status">
+                                    @status
+                                </option>
+                            }
+
+                        </InputSelect>
+                    </div>
+
+                    <div>
+                        <label>Mileage In</label>
+
+                        <InputNumber class="form-control"
+                                     @bind-Value="edit.MileageIn" />
+                    </div>
+
+                    <div>
+                        <label>Mileage Out</label>
+
+                        <InputNumber class="form-control"
+                                     @bind-Value="edit.MileageOut" />
+                    </div>
+
+                    <div>
+                        <label>Assigned Technician</label>
+
+                        <InputSelect TValue="int?" class="form-control" @bind-Value="edit.AssignedTechnicianUserId">
+                            <option value="">Unassigned</option>
+                            @foreach (var technician in technicians)
+                            {
+                                <option value="@technician.Id">@technician.Name</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div>
+                        <label>Completed Date</label>
+
+                        <InputDate class="form-control"
+                                   @bind-Value="edit.CompletedDate" />
+                    </div>
+
+                    <div class="full">
+                        <label>Customer Concern</label>
+
+                        <InputTextArea class="form-control notes"
+                                       @bind-Value="edit.CustomerConcern" />
+                    </div>
+
+                    <div class="full">
+                        <label>Diagnosis</label>
+
+                        <InputTextArea class="form-control notes"
+                                       @bind-Value="edit.Diagnosis" />
+                    </div>
+
+                    <div class="full">
+                        <label>Work Performed</label>
+
+                        <InputTextArea class="form-control notes"
+                                       @bind-Value="edit.WorkPerformed" />
+                    </div>
+
+                    <div class="full">
+                        <label>Notes</label>
+
+                        <InputTextArea class="form-control notes"
+                                       @bind-Value="edit.Notes" />
+                    </div>
+
+                </div>
+
+                @if (edit.Id != 0)
+                {
+                    <div class="ro-summary">
+
+                        <div class="summary-item">
+                            <span>Labor</span>
+                            <strong>
+                                @edit.LaborSubtotal.ToString("C")
+                            </strong>
+                        </div>
+
+                        <div class="summary-item">
+                            <span>Parts</span>
+                            <strong>
+                                @edit.PartsSubtotal.ToString("C")
+                            </strong>
+                        </div>
+
+                        <div class="summary-item">
+                            <span>Subtotal</span>
+                            <strong>
+                                @edit.Subtotal.ToString("C")
+                            </strong>
+                        </div>
+
+                        <div class="summary-item">
+                            <span>Tax</span>
+                            <strong>
+                                @edit.TaxAmount.ToString("C")
+                            </strong>
+                        </div>
+
+                        <div class="summary-item">
+                            <span>Total</span>
+                            <strong>
+                                @edit.TotalAmount.ToString("C")
+                            </strong>
+                        </div>
+
+                        <div class="summary-item">
+                            <span>Paid</span>
+                            <strong>
+                                @edit.AmountPaid.ToString("C")
+                            </strong>
+                        </div>
+
+                        <div class="summary-item">
+                            <span>Balance</span>
+                            <strong>
+                                @edit.Balance.ToString("C")
+                            </strong>
+                        </div>
+
+                    </div>
+                }
+
+            <div class="form-actions">
+
+                <button type="submit"
+                        class="btn"
+                        disabled="@saving">
+
+                    @(saving
+                                        ? "Saving..."
+                                        : edit.Id == 0
+                                        ? "Create Repair Order"
+                                        : "Save Changes")
+
+                </button>
+
+                    <button type="button"
+                            class="btn secondary"
+                            @onclick="CancelEdit">
+                        Cancel
+                    </button>
+
+                </div>
+
+            </EditForm>
+
+        @if (edit.Id != 0)
+            {
+                <div class="labor-section">
+
+                    <div class="section-heading">
+                        <div>
+                            <h3>Labor</h3>
+                            <p>
+                                Add labor performed for this repair order.
+                            </p>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(laborMessage))
+                    {
+                        <div class="alert success">
+                            @laborMessage
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(laborError))
+                    {
+                        <div class="alert error">
+                            @laborError
+                        </div>
+                    }
+
+            <div class="labor-entry-grid">
+
+                <div class="labor-description">
+                    <label>
+                        Description
+                        <span class="required">*</span>
+                    </label>
+
+                    <InputText class="form-control"
+                               @bind-Value="labor.Description" />
+                </div>
+
+                <div>
+                    <label>Technician</label>
+
+                    <InputText class="form-control"
+                               @bind-Value="labor.TechnicianName" />
+                </div>
+
+                <div>
+                    <label>
+                        Hours
+                        <span class="required">*</span>
+                    </label>
+
+                    <InputNumber class="form-control"
+                                 @bind-Value="labor.Hours" />
+                </div>
+
+                <div>
+                    <label>Hourly Rate</label>
+
+                    <InputNumber class="form-control"
+                                 @bind-Value="labor.HourlyRate" />
+                </div>
+
+                <div>
+                    <label>Line Total</label>
+
+                    <div class="calculated-value">
+                        @LaborPreviewTotal.ToString("C")
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="labor-notes-entry">
+                <label>Technician Notes</label>
+                <InputTextArea class="form-control notes" @bind-Value="labor.TechnicianNotes" />
+            </div>
+
+            <div class="labor-actions">
+                <button type="button"
+                        class="btn"
+                        disabled="@savingLabor"
+                        @onclick="AddLabor">
+
+                    @(savingLabor
+                                        ? "Adding..."
+                                        : "+ Add Labor")
+
+                </button>
+            </div>
+
+                    <div class="table-wrap labor-table">
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Technician</th>
+                                    <th>Technician Notes</th>
+                                    <th>Hours</th>
+                                    <th>Hourly Rate</th>
+                                    <th>Line Total</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                        @if (loadingDetail)
+                                {
+                                    <tr>
+                                        <td colspan="6"
+                                            class="empty-row">
+                                            Loading labor...
+                                        </td>
+                                    </tr>
+                                }
+                                else if (detail is null ||
+                                detail.LaborLines.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="6"
+                                            class="empty-row">
+                                            No labor has been added yet.
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var line in detail.LaborLines)
+                                    {
+                                        <tr>
+                                            <td>
+                                                @line.Description
+                                            </td>
+
+                                            <td>
+                                                @(string.IsNullOrWhiteSpace(
+                                                                                line.TechnicianName)
+                                                                                ? "—"
+                                                                                : line.TechnicianName)
+                            </td>
+
+                                            <td>
+                                                @(string.IsNullOrWhiteSpace(line.TechnicianNotes) ? "—" : line.TechnicianNotes)
+                                            </td>
+
+                                            <td>
+                                                @line.Hours.ToString("0.##")
+                                            </td>
+
+                                            <td>
+                                                @line.HourlyRate.ToString("C")
+                                            </td>
+
+                                            <td>
+                                                <strong>
+                                                    @line.LineTotal.ToString("C")
+                                                </strong>
+                                            </td>
+                                        </tr>
+                                                }
+                                }
+
+                            </tbody>
+                        </table>
+
+                    </div>
+
+                </div>
+
+                <div class="labor-section">
+                    <div class="section-heading"><div><h3>Parts</h3><p>Add parts and materials used on this repair order.</p></div></div>
+                    @if (!string.IsNullOrWhiteSpace(partMessage)) { <div class="alert success">@partMessage</div> }
+                    @if (!string.IsNullOrWhiteSpace(partError)) { <div class="alert error">@partError</div> }
+                    <div class="part-catalog-picker">
+                        <label>Use Previous Part</label>
+                        <select class="form-control" value="@selectedCatalogId" @onchange="SelectCatalogPart">
+                            <option value="0">Enter a new part manually</option>
+                            @foreach (var saved in partCatalog)
+                            {
+                                <option value="@saved.Id">@(string.IsNullOrWhiteSpace(saved.PartNumber) ? saved.Description : $"{saved.PartNumber} — {saved.Description}")</option>
+                            }
+                        </select>
+                        <small>Selecting a previous part fills supplier, description, cost and selling price. You can still change any value before saving.</small>
+                    </div>
+                    <div class="part-entry-grid">
+                        <div><label>Supplier</label><InputSelect class="form-control" @bind-Value="part.SupplierId"><option value="">No supplier / Other</option>@foreach (var supplier in suppliers.Where(x => x.IsActive).OrderBy(x => x.Name)) { <option value="@supplier.Id">@supplier.Name</option> }</InputSelect></div>
+                        <div><label>Part Number</label><InputText class="form-control" @bind-Value="part.PartNumber" /></div>
+                        <div class="part-description"><label>Description <span class="required">*</span></label><InputText class="form-control" @bind-Value="part.Description" /></div>
+                        <div><label>Quantity <span class="required">*</span></label><InputNumber class="form-control" @bind-Value="part.Quantity" /></div>
+                        <div><label>Unit Cost</label><InputNumber class="form-control" @bind-Value="part.UnitCost" /></div>
+                        <div><label>Unit Price</label><InputNumber class="form-control" @bind-Value="part.UnitPrice" /></div>
+                        <div><label>Line Total</label><div class="calculated-value">@PartPreviewTotal.ToString("C")</div></div>
+                    </div>
+                    <div class="labor-actions">
+                        <button type="button" class="btn" disabled="@savingPart" @onclick="SavePart">@(savingPart ? "Saving..." : editingPartId.HasValue ? "Save Part Changes" : "+ Add Part")</button>
+                        @if (editingPartId.HasValue) { <button type="button" class="btn secondary" disabled="@savingPart" @onclick="CancelPartEdit">Cancel Edit</button> }
+                    </div>
+                    <div class="table-wrap labor-table"><table><thead><tr><th>Supplier</th><th>Part Number</th><th>Description</th><th>Qty</th><th>Unit Cost</th><th>Unit Price</th><th>Line Total</th><th>Actions</th></tr></thead><tbody>
+                        @if (loadingDetail) { <tr><td colspan="8" class="empty-row">Loading parts...</td></tr> }
+                        else if (detail is null || detail.PartLines.Count == 0) { <tr><td colspan="8" class="empty-row">No parts have been added yet.</td></tr> }
+                        else { @foreach (var line in detail.PartLines) { <tr><td>@DisplayValue(line.SupplierName)</td><td>@DisplayValue(line.PartNumber)</td><td>@line.Description</td><td>@line.Quantity.ToString("0.###")</td><td>@line.UnitCost.ToString("C")</td><td>@line.UnitPrice.ToString("C")</td><td><strong>@line.LineTotal.ToString("C")</strong></td><td><button type="button" class="btn small secondary" @onclick="() => EditPart(line)">Edit</button></td></tr> } }
+                    </tbody></table></div>
+                </div>
+            }
+
+        </div>
+    }
+
+    <div class="table-wrap">
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>RO Number</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Vehicle</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Paid</th>
+                    <th>Balance</th>
+                    <th class="actions-column">Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                @if (loading)
+                {
+                    <tr>
+                        <td colspan="9"
+                            class="empty-row">
+                            Loading repair orders...
+                        </td>
+                    </tr>
+                }
+                else if (items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="9"
+                            class="empty-row">
+                            No repair orders have been created yet.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var repairOrder in items)
+                    {
+                        <tr>
+
+                            <td>
+                                <strong>
+                                    @repairOrder.RepairOrderNumber
+                                </strong>
+
+                                @if (!string.IsNullOrWhiteSpace(
+                                                        repairOrder.InvoiceNumber))
+                                {
+                                    <small class="table-secondary">
+                                        Invoice @repairOrder.InvoiceNumber
+                                    </small>
+                                }
+                            </td>
+
+                            <td>
+                                @repairOrder.OpenedDate.ToString("yyyy-MM-dd")
+                            </td>
+
+                            <td>
+                                @repairOrder.CustomerName
+                            </td>
+
+                            <td>
+                                @repairOrder.Vehicle
+                            </td>
+
+                            <td>
+                                <span class="badge">
+                                    @repairOrder.Status
+                                </span>
+                            </td>
+
+                            <td>
+                                @repairOrder.TotalAmount.ToString("C")
+                            </td>
+
+                            <td>
+                                @repairOrder.AmountPaid.ToString("C")
+                            </td>
+
+                            <td>
+                                <strong>
+                                    @repairOrder.Balance.ToString("C")
+                                </strong>
+                            </td>
+
+                            <td class="row-actions">
+
+                                <button type="button"
+                                        class="action-button"
+                                        title="Edit repair order"
+                                        @onclick="() => EditRepairOrder(repairOrder)">
+
+                                    <svg viewBox="0 0 24 24"
+                                         aria-hidden="true">
+                                        <path d="M12 20h9" />
+                                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                    </svg>
+
+                                </button>
+
+                            </td>
+
+                        </tr>
+                    }
+                }
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+@code
+{
+    private readonly string[] statuses =
+    [
+        "Open",
+        "In Progress",
+        "Waiting for Parts",
+        "Completed",
+        "Invoiced",
+        "Cancelled"
+    ];
+
+    private List<RepairOrderDto> items = [];
+
+    private List<CustomerDto> customers = [];
+
+    private List<VehicleDto> vehicles = [];
+
+    private List<TechnicianDto> technicians = [];
+
+    private List<SupplierDto> suppliers = [];
+
+    private List<PartCatalogDto> partCatalog = [];
+    private int selectedCatalogId;
+    private int? editingPartId;
+
+    private RepairOrderDto edit =
+        NewRepairOrderModel();
+
+    private RepairOrderDetailDto? detail;
+
+    private LaborSaveRequest labor =
+        NewLaborModel();
+
+    private PartSaveRequest part =
+        NewPartModel();
+
+    private bool showForm;
+    private bool loading;
+    private bool saving;
+
+    private bool loadingDetail;
+    private bool savingLabor;
+    private bool savingPart;
+
+    private string? message;
+    private string? error;
+
+    private string? laborMessage;
+    private string? laborError;
+    private string? partMessage;
+    private string? partError;
+
+    private decimal LaborPreviewTotal => labor.Hours * labor.HourlyRate;
+    private decimal PartPreviewTotal => part.Quantity * part.UnitPrice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        loading = true;
+        error = null;
+
+        try
+        {
+            items =
+                await Api.Get<List<RepairOrderDto>>(
+                    "api/RepairOrders")
+                ?? [];
+
+            customers =
+                await Api.Get<List<CustomerDto>>(
+                    "api/Customers")
+                ?? [];
+
+            vehicles =
+                await Api.Get<List<VehicleDto>>(
+                    "api/Vehicles")
+                ?? [];
+
+            technicians =
+                await Api.Get<List<TechnicianDto>>(
+                    "api/Technicians")
+                ?? [];
+
+            suppliers =
+                await Api.Get<List<SupplierDto>>(
+                    "api/Suppliers")
+                ?? [];
+
+            partCatalog =
+                await Api.Get<List<PartCatalogDto>>(
+                    "api/RepairOrders/parts/catalog")
+                ?? [];
+        }
+        catch (Exception ex)
+        {
+            error =
+                "Unable to load repair orders. " +
+                ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void NewRepairOrder()
+    {
+        message = null;
+        error = null;
+
+        laborMessage = null;
+        laborError = null;
+        partMessage = null;
+        partError = null;
+
+        detail = null;
+        labor = NewLaborModel();
+        part = NewPartModel();
+
+        edit = NewRepairOrderModel();
+
+        var firstCustomer =
+            customers
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Name)
+                .FirstOrDefault();
+
+        if (firstCustomer is not null)
+        {
+            edit.CustomerId =
+                firstCustomer.Id;
+
+            var firstVehicle =
+                vehicles
+                    .Where(x =>
+                        x.CustomerId == firstCustomer.Id &&
+                        x.IsActive)
+                    .OrderByDescending(x => x.Year)
+                    .ThenBy(x => x.Make)
+                    .ThenBy(x => x.Model)
+                    .FirstOrDefault();
+
+            if (firstVehicle is not null)
+            {
+                edit.VehicleId =
+                    firstVehicle.Id;
+
+                edit.MileageIn =
+                    firstVehicle.CurrentMileage;
+            }
+        }
+
+        showForm = true;
+    }
+
+    private async Task EditRepairOrder(
+        RepairOrderDto repairOrder)
+    {
+        message = null;
+        error = null;
+
+        laborMessage = null;
+        laborError = null;
+        partMessage = null;
+        partError = null;
+
+        detail = null;
+        labor = NewLaborModel();
+        part = NewPartModel();
+
+        edit = new RepairOrderDto
+        {
+            Id = repairOrder.Id,
+
+            CustomerId =
+                repairOrder.CustomerId,
+
+            VehicleId =
+                repairOrder.VehicleId,
+
+            RepairOrderNumber =
+                repairOrder.RepairOrderNumber,
+
+            InvoiceNumber =
+                repairOrder.InvoiceNumber,
+
+            OpenedDate =
+                ToLocalDate(
+                    repairOrder.OpenedDate),
+
+            CompletedDate =
+                repairOrder.CompletedDate.HasValue
+                    ? ToLocalDate(
+                        repairOrder.CompletedDate.Value)
+                    : null,
+
+            MileageIn =
+                repairOrder.MileageIn,
+
+            MileageOut =
+                repairOrder.MileageOut,
+
+            Status =
+                repairOrder.Status,
+
+            CustomerName =
+                repairOrder.CustomerName,
+
+            Vehicle =
+                repairOrder.Vehicle,
+
+            CustomerConcern =
+                repairOrder.CustomerConcern,
+
+            Diagnosis =
+                repairOrder.Diagnosis,
+
+            WorkPerformed =
+                repairOrder.WorkPerformed,
+
+            TechnicianName =
+                repairOrder.TechnicianName,
+
+            AssignedTechnicianUserId =
+                repairOrder.AssignedTechnicianUserId,
+
+            AssignedTechnicianName =
+                repairOrder.AssignedTechnicianName,
+
+            LaborSubtotal =
+                repairOrder.LaborSubtotal,
+
+            PartsSubtotal =
+                repairOrder.PartsSubtotal,
+
+            Subtotal =
+                repairOrder.Subtotal,
+
+            TaxAmount =
+                repairOrder.TaxAmount,
+
+            TotalAmount =
+                repairOrder.TotalAmount,
+
+            AmountPaid =
+                repairOrder.AmountPaid,
+
+            Balance =
+                repairOrder.Balance,
+
+            Notes =
+                repairOrder.Notes,
+
+            CreatedByUserId =
+                repairOrder.CreatedByUserId,
+
+            CreatedByName =
+                repairOrder.CreatedByName,
+
+            CreatedAt =
+                repairOrder.CreatedAt,
+
+            UpdatedAt =
+                repairOrder.UpdatedAt
+        };
+
+        showForm = true;
+
+        await LoadRepairOrderDetail(
+            repairOrder.Id);
+    }
+
+    private async Task LoadRepairOrderDetail(
+        int repairOrderId)
+    {
+        loadingDetail = true;
+        laborError = null;
+
+        try
+        {
+            detail =
+                await Api.Get<RepairOrderDetailDto>(
+                    $"api/RepairOrders/{repairOrderId}");
+
+            if (detail is null)
+            {
+                laborError =
+                    "Unable to load repair order details.";
+                return;
+            }
+
+            ApplyTotals(detail);
+        }
+        catch (Exception ex)
+        {
+            laborError =
+                "Unable to load repair order details. " +
+                ex.Message;
+        }
+        finally
+        {
+            loadingDetail = false;
+        }
+    }
+
+    private void ApplyTotals(
+        RepairOrderDto source)
+    {
+        edit.LaborSubtotal =
+            source.LaborSubtotal;
+
+        edit.PartsSubtotal =
+            source.PartsSubtotal;
+
+        edit.Subtotal =
+            source.Subtotal;
+
+        edit.TaxAmount =
+            source.TaxAmount;
+
+        edit.TotalAmount =
+            source.TotalAmount;
+
+        edit.AmountPaid =
+            source.AmountPaid;
+
+        edit.Balance =
+            source.Balance;
+    }
+
+    private async Task AddLabor()
+    {
+        laborMessage = null;
+        laborError = null;
+
+        if (edit.Id <= 0)
+        {
+            laborError =
+                "Save the repair order before adding labor.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(
+            labor.Description))
+        {
+            laborError =
+                "Labor description is required.";
+            return;
+        }
+
+        if (labor.Hours <= 0)
+        {
+            laborError =
+                "Labor hours must be greater than zero.";
+            return;
+        }
+
+        if (labor.HourlyRate < 0)
+        {
+            laborError =
+                "Hourly rate cannot be negative.";
+            return;
+        }
+
+        savingLabor = true;
+
+        try
+        {
+            var request =
+                new LaborSaveRequest
+                {
+                    Description =
+                        labor.Description.Trim(),
+
+                    TechnicianName =
+                        Clean(
+                            labor.TechnicianName),
+
+                    TechnicianNotes =
+                        Clean(
+                            labor.TechnicianNotes),
+
+                    Hours =
+                        labor.Hours,
+
+                    HourlyRate =
+                        labor.HourlyRate
+                };
+
+            var success =
+                await Api.Post(
+                    $"api/RepairOrders/{edit.Id}/labor",
+                    request);
+
+            if (!success)
+            {
+                laborError =
+                    "The labor line could not be added.";
+                return;
+            }
+
+            laborMessage =
+                "Labor added successfully.";
+
+            labor =
+                NewLaborModel();
+
+            await LoadRepairOrderDetail(
+                edit.Id);
+
+            await RefreshRepairOrderList();
+        }
+        catch (Exception ex)
+        {
+            laborError =
+                "The labor line could not be added. " +
+                ex.Message;
+        }
+        finally
+        {
+            savingLabor = false;
+        }
+    }
+
+    private async Task SavePart()
+    {
+        partMessage = null; partError = null;
+        if (edit.Id <= 0) { partError = "Save the repair order before adding parts."; return; }
+        if (string.IsNullOrWhiteSpace(part.Description)) { partError = "Part description is required."; return; }
+        if (part.Quantity <= 0) { partError = "Part quantity must be greater than zero."; return; }
+        if (part.UnitCost < 0 || part.UnitPrice < 0) { partError = "Part cost and price cannot be negative."; return; }
+        savingPart = true;
+        try
+        {
+            var request = new PartSaveRequest { SupplierId = part.SupplierId, PartNumber = Clean(part.PartNumber), Description = part.Description.Trim(), Quantity = part.Quantity, UnitCost = part.UnitCost, UnitPrice = part.UnitPrice };
+            var success = editingPartId.HasValue
+                ? await Api.Put($"api/RepairOrders/{edit.Id}/parts/{editingPartId.Value}", request)
+                : await Api.Post($"api/RepairOrders/{edit.Id}/parts", request);
+            if (!success) { partError = editingPartId.HasValue ? "The part line could not be updated." : "The part line could not be added."; return; }
+            partMessage = editingPartId.HasValue ? "Part updated successfully." : "Part added successfully.";
+            part = NewPartModel(); editingPartId = null; selectedCatalogId = 0;
+            await LoadRepairOrderDetail(edit.Id); await RefreshRepairOrderList();
+            partCatalog = await Api.Get<List<PartCatalogDto>>("api/RepairOrders/parts/catalog") ?? [];
+        }
+        catch (Exception ex) { partError = "The part line could not be added. " + ex.Message; }
+        finally { savingPart = false; }
+    }
+
+    private void EditPart(RepairOrderPartDto line)
+    {
+        editingPartId = line.Id;
+        selectedCatalogId = 0;
+        partMessage = null;
+        partError = null;
+        part = new PartSaveRequest
+        {
+            SupplierId = line.SupplierId,
+            PartNumber = line.PartNumber,
+            Description = line.Description,
+            Quantity = line.Quantity,
+            UnitCost = line.UnitCost,
+            UnitPrice = line.UnitPrice
+        };
+    }
+
+    private void CancelPartEdit()
+    {
+        editingPartId = null;
+        selectedCatalogId = 0;
+        part = NewPartModel();
+        partMessage = null;
+        partError = null;
+    }
+
+    private void SelectCatalogPart(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out selectedCatalogId) || selectedCatalogId <= 0)
+        {
+            selectedCatalogId = 0;
+            return;
+        }
+
+        var saved = partCatalog.FirstOrDefault(x => x.Id == selectedCatalogId);
+        if (saved is null) return;
+
+        part.SupplierId = saved.SupplierId;
+        part.PartNumber = saved.PartNumber;
+        part.Description = saved.Description;
+        part.UnitCost = saved.UnitCost;
+        part.UnitPrice = saved.UnitPrice;
+        if (part.Quantity <= 0) part.Quantity = 1m;
+    }
+
+    private async Task RefreshRepairOrderList()
+    {
+        var refreshed =
+            await Api.Get<List<RepairOrderDto>>(
+                "api/RepairOrders");
+
+        if (refreshed is not null)
+        {
+            items = refreshed;
+
+            var current =
+                items.FirstOrDefault(
+                    x => x.Id == edit.Id);
+
+            if (current is not null)
+            {
+                ApplyTotals(current);
+            }
+        }
+    }
+
+    private void CancelEdit()
+    {
+        edit =
+            NewRepairOrderModel();
+
+        detail = null;
+
+        labor =
+            NewLaborModel();
+        part = NewPartModel();
+
+        showForm = false;
+
+        error = null;
+        laborError = null;
+        laborMessage = null;
+        partError = null;
+        partMessage = null;
+    }
+
+    private void CustomerChanged(
+        int customerId)
+    {
+        edit.CustomerId = customerId;
+        edit.VehicleId = 0;
+        edit.MileageIn = null;
+
+        var firstVehicle =
+            vehicles
+                .Where(x =>
+                    x.CustomerId == customerId &&
+                    x.IsActive)
+                .OrderByDescending(x => x.Year)
+                .ThenBy(x => x.Make)
+                .ThenBy(x => x.Model)
+                .FirstOrDefault();
+
+        if (firstVehicle is not null)
+        {
+            edit.VehicleId =
+                firstVehicle.Id;
+
+            edit.MileageIn =
+                firstVehicle.CurrentMileage;
+        }
+    }
+
+    private IEnumerable<CustomerDto>
+        SelectableCustomers()
+    {
+        return customers
+            .Where(x =>
+                x.IsActive ||
+                (edit.Id != 0 &&
+                 x.Id == edit.CustomerId))
+            .OrderBy(x => x.Name);
+    }
+
+    private IEnumerable<VehicleDto>
+        SelectableVehicles()
+    {
+        return vehicles
+            .Where(x =>
+                x.CustomerId ==
+                    edit.CustomerId &&
+                (x.IsActive ||
+                 (edit.Id != 0 &&
+                  x.Id == edit.VehicleId)))
+            .OrderByDescending(x => x.Year)
+            .ThenBy(x => x.Make)
+            .ThenBy(x => x.Model);
+    }
+
+    private async Task Save()
+    {
+        message = null;
+        error = null;
+
+        if (edit.CustomerId <= 0)
+        {
+            error =
+                "Please select a customer.";
+            return;
+        }
+
+        if (edit.VehicleId <= 0)
+        {
+            error =
+                "Please select a vehicle.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(
+            edit.RepairOrderNumber))
+        {
+            error =
+                "Repair order number is required.";
+            return;
+        }
+
+        if (edit.MileageIn.HasValue &&
+            edit.MileageIn.Value < 0)
+        {
+            error =
+                "Mileage In cannot be negative.";
+            return;
+        }
+
+        if (edit.MileageOut.HasValue &&
+            edit.MileageOut.Value < 0)
+        {
+            error =
+                "Mileage Out cannot be negative.";
+            return;
+        }
+
+        saving = true;
+
+        try
+        {
+            var openedDateUtc =
+                ToUtc(
+                    edit.OpenedDate);
+
+            DateTime? completedDateUtc =
+                edit.CompletedDate.HasValue
+                    ? ToUtc(
+                        edit.CompletedDate.Value)
+                    : null;
+
+            var request = new
+            {
+                edit.CustomerId,
+                edit.VehicleId,
+
+                RepairOrderNumber =
+                    edit.RepairOrderNumber.Trim(),
+
+                InvoiceNumber =
+                    Clean(
+                        edit.InvoiceNumber),
+
+                OpenedDate =
+                    openedDateUtc,
+
+                CompletedDate =
+                    completedDateUtc,
+
+                edit.Status,
+                edit.MileageIn,
+                edit.MileageOut,
+
+                CustomerConcern =
+                    Clean(
+                        edit.CustomerConcern),
+
+                Diagnosis =
+                    Clean(
+                        edit.Diagnosis),
+
+                WorkPerformed =
+                    Clean(
+                        edit.WorkPerformed),
+
+                TechnicianName =
+                    Clean(
+                        edit.TechnicianName),
+
+                AssignedTechnicianUserId =
+                    edit.AssignedTechnicianUserId,
+
+                Notes =
+                    Clean(
+                        edit.Notes),
+
+                edit.TaxAmount
+            };
+
+            bool success;
+
+            if (edit.Id == 0)
+            {
+                success =
+                    await Api.Post(
+                        "api/RepairOrders",
+                        request);
+            }
+            else
+            {
+                success =
+                    await Api.Put(
+                        $"api/RepairOrders/{edit.Id}",
+                        request);
+            }
+
+            if (!success)
+            {
+                error =
+                    "The repair order could not be saved. " +
+                    "Please verify the information.";
+                return;
+            }
+
+            message =
+                edit.Id == 0
+                    ? "Repair order created successfully."
+                    : "Repair order updated successfully.";
+
+            showForm = false;
+
+            edit =
+                NewRepairOrderModel();
+
+            detail = null;
+
+            labor =
+                NewLaborModel();
+            part = NewPartModel();
+
+            await Load();
+        }
+        catch (Exception ex)
+        {
+            error =
+                "The repair order could not be saved. " +
+                ex.Message;
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private static PartSaveRequest NewPartModel() => new() { Quantity = 1m };
+
+    private static string DisplayValue(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+
+    private static RepairOrderDto
+        NewRepairOrderModel()
+    {
+        return new RepairOrderDto
+        {
+            OpenedDate =
+                DateTime.Today,
+
+            Status =
+                "Open",
+
+            RepairOrderNumber =
+                ""
+        };
+    }
+
+    private static LaborSaveRequest
+        NewLaborModel()
+    {
+        return new LaborSaveRequest
+        {
+            Description = "",
+            TechnicianName = null,
+            Hours = 1m,
+            HourlyRate = 0m
+        };
+    }
+
+    private static string VehicleOption(
+        VehicleDto vehicle)
+    {
+        var description =
+            string.Join(
+                " ",
+                new[]
+                {
+                    vehicle.Year?.ToString(),
+                    vehicle.Make,
+                    vehicle.Model
+                }
+                .Where(x =>
+                    !string.IsNullOrWhiteSpace(x)));
+
+        if (!string.IsNullOrWhiteSpace(
+            vehicle.LicensePlate))
+        {
+            description +=
+                $" - {vehicle.LicensePlate}";
+        }
+
+        return string.IsNullOrWhiteSpace(
+            description)
+            ? "Vehicle"
+            : description;
+    }
+
+    private static DateTime ToUtc(
+        DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc =>
+                value,
+
+            DateTimeKind.Local =>
+                value.ToUniversalTime(),
+
+            DateTimeKind.Unspecified =>
+                DateTime.SpecifyKind(
+                        value,
+                        DateTimeKind.Local)
+                    .ToUniversalTime(),
+
+            _ =>
+                value.ToUniversalTime()
+        };
+    }
+
+    private static DateTime ToLocalDate(
+        DateTime value)
+    {
+        if (value.Kind ==
+            DateTimeKind.Utc)
+        {
+            return value.ToLocalTime();
+        }
+
+        return value;
+    }
+
+    private static string? Clean(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(
+            value)
+            ? null
+            : value.Trim();
+    }
+}

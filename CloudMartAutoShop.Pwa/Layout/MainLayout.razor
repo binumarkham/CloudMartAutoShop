@@ -1,0 +1,80 @@
+@inherits LayoutComponentBase
+@inject ApiService Api
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<div class="shell">
+    <aside>
+        <div class="brand">
+            <span class="mark">CM</span>
+            <div>
+                <strong>CloudMart</strong>
+                <small>Auto Shop Manager</small>
+            </div>
+        </div>
+
+        <NavMenu />
+    </aside>
+
+    <main>
+        <header class="app-header">
+            <div class="header-branding">
+                <strong>CloudMart Auto Shop</strong>
+                <span>Professional Service Management</span>
+            </div>
+
+            <span class="spacer"></span>
+
+            @if (isLoggedIn)
+            {
+                <div class="header-account">
+                    <div class="header-user">
+                        <strong>@businessName</strong>
+                        <span>@userName</span>
+                    </div>
+
+                    <button class="header-logout" @onclick="Logout">
+                        Logout
+                    </button>
+                </div>
+            }
+        </header>
+
+        <section class="content">
+            @Body
+        </section>
+    </main>
+</div>
+
+@code {
+    private bool isLoggedIn;
+    private string userName = "";
+    private string businessName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await JS.InvokeAsync<string?>(
+            "localStorage.getItem",
+            "authToken");
+
+        isLoggedIn = !string.IsNullOrWhiteSpace(token);
+
+        if (isLoggedIn)
+        {
+            userName = await JS.InvokeAsync<string?>(
+                "localStorage.getItem",
+                "userName") ?? "User";
+
+            businessName = await JS.InvokeAsync<string?>(
+                "localStorage.getItem",
+                "businessName") ?? "";
+        }
+    }
+
+    private async Task Logout()
+    {
+        await Api.Logout();
+
+        Nav.NavigateTo("login", forceLoad: true);
+    }
+}

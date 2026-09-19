@@ -1,0 +1,41 @@
+# Visual Studio
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# .NET build output
+**/bin/
+**/obj/
+
+# Publish/deployment output
+publish/
+Publish/
+artifacts/
+
+# Local configuration / secrets
+**/appsettings.Development.json
+**/appsettings.Local.json
+.env
+.env.*
+*.pfx
+*.p12
+*.pem
+*.key
+
+# AWS / CloudFront temporary deployment files
+app-cloudfront-current.json
+app-cloudfront-updated.json
+autoshop-api-cloudfront-dns.json
+autoshop-cert-validation.json
+autoshop-cloudfront.json
+autoshop-dns.json
+autoshop-origin-dns.json
+pwa-cloudfront-template.json
+storemanager-cloudfront-template.json
+
+# OS files
+.DS_Store
+Thumbs.db

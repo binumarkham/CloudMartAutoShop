@@ -1,0 +1,26 @@
+@page "/users"
+@inject ApiService Api
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+<PageTitle>Users - CloudMart Auto Shop</PageTitle>
+
+<div class="page-header"><div><h1>User Administration</h1><p>Manage users and roles for this business.</p></div>@if (authorized){<button class="btn" @onclick="NewUser">+ New User</button>}</div>
+@if (!loaded){<div class="panel">Loading...</div>}
+else if (!authorized){<div class="panel"><h3>Access denied</h3><p>User Administration is available only to Administrators.</p></div>}
+else
+{
+@if (showForm){<div class="panel"><div class="form-header"><div><h3>@(editId==0?"New User":"Edit User")</h3><p>Assign access appropriate to the employee's job.</p></div><button type="button" class="icon-button" @onclick="Cancel">×</button></div>
+<div class="form-grid"><div><label>Name</label><input @bind="model.Name" /></div><div><label>Email</label><input type="email" @bind="model.Email" /></div><div><label>Role</label><select @bind="model.Role"><option>Administrator</option><option>Service Advisor</option><option>Technician</option></select></div><div><label>@(editId==0?"Password":"New Password (optional)")</label><input type="password" @bind="model.Password" placeholder="@(editId==0?"Minimum 8 characters":"Leave blank to keep current password")" /></div><div><label><input type="checkbox" @bind="model.IsActive" /> Active</label></div></div>
+@if(!string.IsNullOrWhiteSpace(message)){<div class="error">@message</div>}<div class="form-actions"><button class="btn" @onclick="Save" disabled="@saving">@(saving?"Saving...":"Save User")</button><button class="btn secondary" @onclick="Cancel">Cancel</button></div></div>}
+<div class="panel"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody>@foreach(var u in users){<tr><td>@u.Name</td><td>@u.Email</td><td>@u.Role</td><td><span class="status-pill">@(u.IsActive?"Active":"Inactive")</span></td><td>@u.CreatedAt.ToString("yyyy-MM-dd")</td><td><button class="btn secondary" @onclick="()=>Edit(u)">Edit</button></td></tr>}</tbody></table></div></div>
+}
+
+@code {
+    List<UserAdminDto> users=[]; UserSaveRequest model=new(); int editId; bool loaded,authorized,showForm,saving; string? message;
+    protected override async Task OnInitializedAsync(){var role=await JS.InvokeAsync<string?>("localStorage.getItem","userRole")??"";authorized=role.Equals("Administrator",StringComparison.OrdinalIgnoreCase)||role.Equals("Admin",StringComparison.OrdinalIgnoreCase);loaded=true;if(!authorized)return;await Load();}
+    async Task Load(){users=await Api.Get<List<UserAdminDto>>("api/Users")??[];}
+    void NewUser(){editId=0;model=new(){Role="Technician",IsActive=true};message=null;showForm=true;}
+    void Edit(UserAdminDto u){editId=u.Id;model=new(){Name=u.Name,Email=u.Email,Role=u.Role=="Admin"?"Administrator":u.Role,IsActive=u.IsActive};message=null;showForm=true;}
+    void Cancel(){showForm=false;message=null;}
+    async Task Save(){message=null;if(string.IsNullOrWhiteSpace(model.Name)||string.IsNullOrWhiteSpace(model.Email)){message="Name and email are required.";return;}if(editId==0&&string.IsNullOrWhiteSpace(model.Password)){message="Password is required for a new user.";return;}if(!string.IsNullOrEmpty(model.Password)&&model.Password.Length<8){message="Password must be at least 8 characters.";return;}saving=true;var ok=editId==0?await Api.Post("api/Users",model):await Api.Put($"api/Users/{editId}",model);saving=false;if(!ok){message="Unable to save the user. Check the values and try again.";return;}showForm=false;await Load();}
+}

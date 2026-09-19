@@ -1,0 +1,668 @@
+@page "/my-repair-orders"
+@inject ApiService Api
+
+<PageTitle>My Repair Orders - CloudMart Auto Shop</PageTitle>
+
+<h1>My Repair Orders</h1>
+<p class="subtitle">
+    Assigned work, diagnosis, work performed, technician notes and hours
+</p>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert error">@error</div>
+}
+
+<div class="panel">
+    @if (loading)
+    {
+        <p>Loading assigned repair orders...</p>
+    }
+    else if (items.Count == 0)
+    {
+        <p class="subtitle">
+            No repair orders are currently assigned to you.
+        </p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>RO #</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Vehicle</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @foreach (var item in items)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@item.RepairOrderNumber</strong>
+                            </td>
+
+                            <td>
+                                @item.OpenedDate.ToString("yyyy-MM-dd")
+                            </td>
+
+                            <td>
+                                @item.CustomerName
+                            </td>
+
+                            <td>
+                                @item.Vehicle
+                            </td>
+
+                            <td>
+                                @item.Status
+                            </td>
+
+                            <td>
+                                <button type="button"
+                                        class="btn secondary"
+                                        @onclick="() => Open(item.Id)">
+                                    Open Job
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (edit is not null)
+{
+    <div class="panel technician-job-panel">
+
+        <div class="form-header">
+            <div>
+                <h3>
+                    Repair Order @edit.RepairOrderNumber
+                </h3>
+
+                <p>
+                    @edit.CustomerName · @edit.Vehicle
+                </p>
+            </div>
+
+            <button type="button"
+                    class="icon-button"
+                    title="Close"
+                    @onclick="Close">
+                ×
+            </button>
+        </div>
+
+        <div class="technician-job-info">
+
+            <div>
+                <span>Customer Concern</span>
+                <strong>
+                    @Display(edit.CustomerConcern)
+                </strong>
+            </div>
+
+            <div>
+                <span>Mileage In</span>
+                <strong>
+                    @(edit.MileageIn?.ToString() ?? "—")
+                </strong>
+            </div>
+
+        </div>
+
+        <EditForm Model="work"
+                  OnSubmit="SaveWork">
+
+            <div class="form-grid">
+
+                <div>
+                    <label>Status</label>
+
+                    <InputSelect class="form-control"
+                                 @bind-Value="work.Status">
+
+                        @foreach (var status in statuses)
+                        {
+                            <option value="@status">
+                                @status
+                            </option>
+                        }
+
+                </InputSelect>
+            </div>
+
+            <div>
+                <label>Mileage Out</label>
+
+                <InputNumber class="form-control"
+                             @bind-Value="work.MileageOut" />
+            </div>
+
+            <div class="full">
+                <label>Diagnosis</label>
+
+                <InputTextArea class="form-control notes"
+                               @bind-Value="work.Diagnosis" />
+            </div>
+
+            <div class="full">
+                <label>Work Performed</label>
+
+                <InputTextArea class="form-control notes"
+                               @bind-Value="work.WorkPerformed" />
+            </div>
+
+        </div>
+
+        <div class="form-actions">
+            <button class="btn"
+                    type="submit"
+                    disabled="@saving">
+
+                @(saving
+                                ? "Saving..."
+                                : "Save Work Update")
+
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(workMessage))
+            {
+                <div class="alert success">
+                    @workMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(workError))
+            {
+                <div class="alert error">
+                    @workError
+                </div>
+            }
+
+    </EditForm>
+
+    <div class="labor-section">
+
+        <div class="section-heading">
+            <div>
+                <h3>My Labor</h3>
+
+                <p>
+                    Record the task, time spent and technician notes.
+                    Billing rates are not shown here.
+                </p>
+            </div>
+        </div>
+
+        <div class="labor-entry-grid technician-labor-grid">
+
+            <div class="labor-description">
+                <label>
+                    Description
+                    <span class="required">*</span>
+                </label>
+
+                <InputText class="form-control"
+                           @bind-Value="labor.Description" />
+            </div>
+
+            <div>
+                <label>
+                    Hours
+                    <span class="required">*</span>
+                </label>
+
+                <InputNumber class="form-control"
+                             @bind-Value="labor.Hours" />
+            </div>
+
+            <div class="full">
+                <label>Technician Notes</label>
+
+                <InputTextArea class="form-control notes"
+                               @bind-Value="labor.TechnicianNotes" />
+            </div>
+
+        </div>
+
+        <div class="labor-actions">
+
+            <button type="button"
+                    class="btn"
+                    disabled="@savingLabor"
+                    @onclick="AddLabor">
+
+                @(savingLabor
+                                ? "Adding..."
+                                : "+ Add Labor")
+
+            </button>
+
+            </div>
+
+        @if (!string.IsNullOrWhiteSpace(laborMessage))
+            {
+                <div class="alert success">
+                    @laborMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(laborError))
+            {
+                <div class="alert error">
+                    @laborError
+                </div>
+            }
+
+            <div class="table-wrap labor-table">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th>Technician Notes</th>
+                            <th>Hours</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        @if (edit.LaborLines.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="4"
+                                    class="empty-row">
+                                    No labor recorded yet.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var line in edit.LaborLines)
+                            {
+                                <tr>
+                                    <td>
+                                        @line.Description
+                                    </td>
+
+                                    <td>
+                                        @Display(line.TechnicianNotes)
+                                    </td>
+
+                                    <td>
+                                        @line.Hours.ToString("0.##")
+                                    </td>
+
+                                    <td>
+                                        @line.CreatedAt.ToString("yyyy-MM-dd")
+                                    </td>
+                                </tr>
+                            }
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+}
+
+@code {
+
+    private readonly string[] statuses =
+    [
+        "Open",
+        "In Progress",
+        "Waiting for Parts",
+        "Completed"
+    ];
+
+    private List<TechnicianRepairOrderDto> items = [];
+
+    private TechnicianRepairOrderDto? edit;
+
+    private TechnicianWorkSaveRequest work = new();
+
+    private LaborSaveRequest labor = NewLabor();
+
+    private bool loading;
+    private bool saving;
+    private bool savingLabor;
+
+    private string? error;
+
+    private string? workMessage;
+    private string? workError;
+
+    private string? laborMessage;
+    private string? laborError;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+
+    private async Task Load()
+    {
+        loading = true;
+        error = null;
+
+        try
+        {
+            items =
+                await Api.Get<List<TechnicianRepairOrderDto>>(
+                    "api/technician/repair-orders")
+                ?? [];
+        }
+        catch (Exception ex)
+        {
+            error =
+                "Unable to load assigned repair orders. " +
+                ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+
+    private async Task Open(int id)
+    {
+        error = null;
+
+        workMessage = null;
+        workError = null;
+
+        laborMessage = null;
+        laborError = null;
+
+        edit =
+            await Api.Get<TechnicianRepairOrderDto>(
+                $"api/technician/repair-orders/{id}");
+
+        if (edit is null)
+        {
+            error =
+                "Unable to open this repair order.";
+
+            return;
+        }
+
+        work =
+            new TechnicianWorkSaveRequest
+            {
+                Diagnosis =
+                    edit.Diagnosis,
+
+                WorkPerformed =
+                    edit.WorkPerformed,
+
+                MileageOut =
+                    edit.MileageOut,
+
+                Status =
+                    edit.Status,
+
+                CompletedDate =
+                    edit.CompletedDate
+            };
+
+        labor = NewLabor();
+    }
+
+
+    private async Task SaveWork()
+    {
+        if (edit is null)
+        {
+            return;
+        }
+
+        saving = true;
+
+        workMessage = null;
+        workError = null;
+
+        try
+        {
+            var id = edit.Id;
+
+            var ok =
+                await Api.Put(
+                    $"api/technician/repair-orders/{id}/work",
+                    work);
+
+            if (!ok)
+            {
+                workError =
+                    "The work update could not be saved.";
+
+                return;
+            }
+
+            /*
+             * Refresh the repair-order list so that a status
+             * change is immediately reflected in the table.
+             */
+            await Load();
+
+            /*
+             * Reload the currently opened repair order directly.
+             * We intentionally do not call Open() here because
+             * Open() clears the success/error messages.
+             */
+            edit =
+                await Api.Get<TechnicianRepairOrderDto>(
+                    $"api/technician/repair-orders/{id}");
+
+            if (edit is null)
+            {
+                workError =
+                    "The work was saved, but the repair order " +
+                    "could not be reloaded.";
+
+                return;
+            }
+
+            work =
+                new TechnicianWorkSaveRequest
+                {
+                    Diagnosis =
+                        edit.Diagnosis,
+
+                    WorkPerformed =
+                        edit.WorkPerformed,
+
+                    MileageOut =
+                        edit.MileageOut,
+
+                    Status =
+                        edit.Status,
+
+                    CompletedDate =
+                        edit.CompletedDate
+                };
+
+            workMessage =
+                "Work update saved successfully.";
+        }
+        catch (Exception ex)
+        {
+            workError =
+                "Unable to save the work update. " +
+                ex.Message;
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+
+    private async Task AddLabor()
+    {
+        if (edit is null)
+        {
+            return;
+        }
+
+        laborMessage = null;
+        laborError = null;
+
+        if (string.IsNullOrWhiteSpace(
+                labor.Description))
+        {
+            laborError =
+                "Labor description is required.";
+
+            return;
+        }
+
+        if (labor.Hours <= 0)
+        {
+            laborError =
+                "Labor hours must be greater than zero.";
+
+            return;
+        }
+
+        savingLabor = true;
+
+        try
+        {
+            var id = edit.Id;
+
+            var request =
+                new LaborSaveRequest
+                {
+                    Description =
+                        labor.Description.Trim(),
+
+                    TechnicianNotes =
+                        Clean(labor.TechnicianNotes),
+
+                    Hours =
+                        labor.Hours,
+
+                    /*
+                     * Technicians do not control or see
+                     * billing rates.
+                     */
+                    HourlyRate = 0m
+                };
+
+            var ok =
+                await Api.Post(
+                    $"api/technician/repair-orders/{id}/labor",
+                    request);
+
+            if (!ok)
+            {
+                laborError =
+                    "The labor entry could not be added.";
+
+                return;
+            }
+
+            /*
+             * Clear the entry fields after a successful save.
+             */
+            labor = NewLabor();
+
+            /*
+             * Reload the repair order so the newly entered
+             * labor appears immediately in the labor table.
+             */
+            edit =
+                await Api.Get<TechnicianRepairOrderDto>(
+                    $"api/technician/repair-orders/{id}");
+
+            if (edit is null)
+            {
+                laborError =
+                    "The labor entry was saved, but the repair " +
+                    "order could not be reloaded.";
+
+                return;
+            }
+
+            /*
+             * Refresh the repair-order list as well.
+             */
+            await Load();
+
+            laborMessage =
+                "Labor entry added successfully.";
+        }
+        catch (Exception ex)
+        {
+            laborError =
+                "Unable to add the labor entry. " +
+                ex.Message;
+        }
+        finally
+        {
+            savingLabor = false;
+        }
+    }
+
+
+    private void Close()
+    {
+        edit = null;
+
+        error = null;
+
+        workMessage = null;
+        workError = null;
+
+        laborMessage = null;
+        laborError = null;
+    }
+
+
+    private static LaborSaveRequest NewLabor()
+    {
+        return new LaborSaveRequest
+        {
+            Hours = 1m
+        };
+    }
+
+
+    private static string Display(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "—"
+            : value;
+    }
+
+
+    private static string? Clean(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+    }
+}
