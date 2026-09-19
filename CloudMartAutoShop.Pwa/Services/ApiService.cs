@@ -1,13 +1,16 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using CloudMartAutoShop.Pwa.Models;
+using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
 namespace CloudMartAutoShop.Pwa.Services;
 
 public class ApiService(
     HttpClient http,
-    IJSRuntime js)
+    IJSRuntime js,
+    NavigationManager nav)
 {
     public async Task<LoginResponse?> Login(LoginRequest request)
     {
@@ -53,23 +56,7 @@ public class ApiService(
 
     public async Task Logout()
     {
-        await js.InvokeVoidAsync(
-            "localStorage.removeItem",
-            "authToken");
-
-        await js.InvokeVoidAsync(
-            "localStorage.removeItem",
-            "businessName");
-
-        await js.InvokeVoidAsync(
-            "localStorage.removeItem",
-            "userName");
-
-        await js.InvokeVoidAsync(
-            "localStorage.removeItem",
-            "userRole");
-
-        http.DefaultRequestHeaders.Authorization = null;
+        await ClearAuthentication();
     }
 
     public async Task<T?> Get<T>(string url)
@@ -78,6 +65,11 @@ public class ApiService(
 
         var response =
             await http.GetAsync(url);
+
+        if (await HandleUnauthorized(response))
+        {
+            return default;
+        }
 
         if (!response.IsSuccessStatusCode)
         {
@@ -99,6 +91,11 @@ public class ApiService(
                 url,
                 data);
 
+        if (await HandleUnauthorized(response))
+        {
+            return false;
+        }
+
         return response.IsSuccessStatusCode;
     }
 
@@ -112,6 +109,11 @@ public class ApiService(
             await http.PutAsJsonAsync(
                 url,
                 data);
+
+        if (await HandleUnauthorized(response))
+        {
+            return false;
+        }
 
         return response.IsSuccessStatusCode;
     }
@@ -127,6 +129,11 @@ public class ApiService(
                 url,
                 data);
 
+        if (await HandleUnauthorized(response))
+        {
+            return false;
+        }
+
         return response.IsSuccessStatusCode;
     }
 
@@ -136,6 +143,11 @@ public class ApiService(
 
         var response =
             await http.DeleteAsync(url);
+
+        if (await HandleUnauthorized(response))
+        {
+            return false;
+        }
 
         return response.IsSuccessStatusCode;
     }
@@ -153,5 +165,43 @@ public class ApiService(
                 : new AuthenticationHeaderValue(
                     "Bearer",
                     token);
+    }
+
+    private async Task<bool> HandleUnauthorized(
+        HttpResponseMessage response)
+    {
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+        {
+            return false;
+        }
+
+        await ClearAuthentication();
+
+        nav.NavigateTo(
+            "login",
+            forceLoad: true);
+
+        return true;
+    }
+
+    private async Task ClearAuthentication()
+    {
+        await js.InvokeVoidAsync(
+            "localStorage.removeItem",
+            "authToken");
+
+        await js.InvokeVoidAsync(
+            "localStorage.removeItem",
+            "businessName");
+
+        await js.InvokeVoidAsync(
+            "localStorage.removeItem",
+            "userName");
+
+        await js.InvokeVoidAsync(
+            "localStorage.removeItem",
+            "userRole");
+
+        http.DefaultRequestHeaders.Authorization = null;
     }
 }
