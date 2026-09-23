@@ -1,0 +1,965 @@
+﻿@page "/parts"
+@inject ApiService Api
+
+<PageTitle>Parts - CloudMart Auto Shop</PageTitle>
+
+<h1>Parts</h1>
+<p class="subtitle">Manage reusable parts and supplier relationships</p>
+
+<div class="panel">
+
+    <div class="toolbar">
+        <div>
+            <strong>Part Catalog</strong>
+            <span class="list-count">@items.Count part(s)</span>
+        </div>
+
+        <button class="btn"
+                type="button"
+                @onclick="NewPart">
+            + New Part
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="alert success">
+            @message
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert error">
+            @error
+        </div>
+    }
+
+    @if (showForm)
+    {
+        <div class="edit-panel">
+
+            <div class="form-header">
+                <div>
+                    <h3>
+                        @(edit.Id == 0
+                                            ? "New Part"
+                                            : "Edit Part")
+                </h3>
+
+                    <p>
+                        Maintain the reusable part catalog and default pricing.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="icon-button"
+                        title="Close"
+                        @onclick="Cancel">
+                    &times;
+                </button>
+            </div>
+
+            <EditForm Model="edit"
+                      OnSubmit="Save">
+
+                <div class="form-grid">
+
+                    <div>
+                        <label>Part Number</label>
+
+                        <InputText class="form-control"
+                                   @bind-Value="edit.PartNumber" />
+                    </div>
+
+                    <div>
+                        <label>
+                            Description
+                            <span class="required">*</span>
+                        </label>
+
+                        <InputText class="form-control"
+                                   @bind-Value="edit.Description" />
+                    </div>
+
+                    <div>
+                        <label>Preferred Supplier</label>
+
+                        <InputSelect TValue="int?"
+                                     class="form-control"
+                                     @bind-Value="edit.PreferredSupplierId">
+
+                            <option value="">
+                                No preferred supplier
+                            </option>
+
+                        @foreach (var supplier in
+                                                suppliers
+                                                .Where(x => x.IsActive)
+                                                .OrderBy(x => x.Name))
+                            {
+                                <option value="@supplier.Id">
+                                    @supplier.Name
+                                </option>
+                            }
+
+                    </InputSelect>
+                </div>
+
+                <div>
+                    <label>Default Unit Cost</label>
+
+                    <InputNumber class="form-control"
+                                 @bind-Value="edit.DefaultUnitCost" />
+                </div>
+
+                <div>
+                    <label>Default Unit Price</label>
+
+                    <InputNumber class="form-control"
+                                 @bind-Value="edit.DefaultUnitPrice" />
+                </div>
+
+                <div>
+                    <label>Status</label>
+
+                    <InputSelect class="form-control"
+                                 @bind-Value="edit.IsActive">
+
+                        <option value="true">
+                            Active
+                        </option>
+
+                        <option value="false">
+                            Inactive
+                        </option>
+
+                    </InputSelect>
+                </div>
+
+            </div>
+
+            <div class="form-actions">
+
+                <button class="btn"
+                        type="submit"
+                        disabled="@saving">
+
+                    @(saving
+                                        ? "Saving..."
+                                        : edit.Id == 0
+                                        ? "Create Part"
+                                        : "Save Part")
+
+                </button>
+
+                    <button class="btn secondary"
+                            type="button"
+                            @onclick="Cancel">
+                        Cancel
+                    </button>
+
+                </div>
+
+            </EditForm>
+
+        </div>
+        }
+
+    @if (supplierPart is not null)
+    {
+        <div class="edit-panel">
+
+            <div class="form-header">
+                <div>
+                    <h3>
+                        Suppliers for @PartDisplay(supplierPart)
+                    </h3>
+
+                    <p>
+                        Link suppliers, supplier-specific part numbers,
+                        costs and the preferred supplier.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="icon-button"
+                        title="Close"
+                        @onclick="CloseSuppliers">
+                    &times;
+                </button>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(supplierMessage))
+            {
+                <div class="alert success">
+                    @supplierMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(supplierError))
+            {
+                <div class="alert error">
+                    @supplierError
+                </div>
+            }
+
+            <div class="form-grid">
+
+                <div>
+                    <label>
+                        Supplier
+                        <span class="required">*</span>
+                    </label>
+
+                    <InputSelect class="form-control"
+                                 @bind-Value="supplierEdit.SupplierId">
+
+                        <option value="0">
+                            Select supplier
+                        </option>
+
+                        @foreach (var supplier in
+                                            suppliers
+                                            .Where(x => x.IsActive)
+                                            .OrderBy(x => x.Name))
+                        {
+                            <option value="@supplier.Id">
+                                @supplier.Name
+                            </option>
+                        }
+
+                </InputSelect>
+            </div>
+
+            <div>
+                <label>Supplier Part Number</label>
+
+                <InputText class="form-control"
+                           @bind-Value="supplierEdit.SupplierPartNumber" />
+            </div>
+
+            <div>
+                <label>Last Cost</label>
+
+                <InputNumber class="form-control"
+                             @bind-Value="supplierEdit.LastCost" />
+            </div>
+
+            <div>
+                <label>Preferred Supplier</label>
+
+                <InputSelect class="form-control"
+                             @bind-Value="supplierEdit.IsPreferred">
+
+                    <option value="false">
+                        No
+                    </option>
+
+                    <option value="true">
+                        Yes
+                    </option>
+
+                </InputSelect>
+            </div>
+
+        </div>
+
+        <div class="form-actions">
+
+            <button type="button"
+                    class="btn"
+                    disabled="@savingSupplier"
+                    @onclick="SaveSupplier">
+
+                @(savingSupplier
+                                ? "Saving..."
+                                : editingSupplierId.HasValue
+                                ? "Save Supplier"
+                                : "+ Add Supplier")
+
+            </button>
+
+            @if (editingSupplierId.HasValue)
+                {
+                    <button type="button"
+                            class="btn secondary"
+                            disabled="@savingSupplier"
+                            @onclick="CancelSupplierEdit">
+                        Cancel Edit
+                    </button>
+                }
+
+            </div>
+
+            <div class="table-wrap">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>Supplier</th>
+                            <th>Supplier Part #</th>
+                            <th>Last Cost</th>
+                            <th>Preferred</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        @if (loadingSuppliers)
+                        {
+                            <tr>
+                                <td colspan="6"
+                                    class="empty-row">
+                                    Loading suppliers...
+                                </td>
+                            </tr>
+                        }
+                        else if (partSuppliers.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6"
+                                    class="empty-row">
+                                    No suppliers are linked to this part.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var link in partSuppliers)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>
+                                            @link.SupplierName
+                                        </strong>
+                                    </td>
+
+                                    <td>
+                                        @Display(link.SupplierPartNumber)
+                                    </td>
+
+                                    <td>
+                                        @(link.LastCost.HasValue
+                                                                    ? link.LastCost.Value.ToString("C")
+                                                                    : "-")
+                                                                      </td>
+
+                                    <td>
+                                        @(link.IsPreferred
+                                                                    ? "Yes"
+                                                                    : "No")
+                                                                       </td>
+
+                                    <td>
+                                        <span class="badge">
+                                            @(link.SupplierIsActive
+                                                                            ? "Active"
+                                                                            : "Inactive")
+                            </span>
+                        </td>
+
+                                    <td class="row-actions">
+
+                                        <button type="button"
+                                                class="btn small secondary"
+                                                @onclick="() => EditSupplier(link)">
+                                            Edit
+                                        </button>
+
+                                        <button type="button"
+                                                class="btn small secondary"
+                                                @onclick="() => RemoveSupplier(link)">
+                                            Remove
+                                        </button>
+
+                                    </td>
+                                </tr>
+                                        }
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+    }
+
+    <div class="table-wrap">
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Part Number</th>
+                    <th>Description</th>
+                    <th>Preferred Supplier</th>
+                    <th>Unit Cost</th>
+                    <th>Unit Price</th>
+                    <th>Suppliers</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                @if (loading)
+                {
+                    <tr>
+                        <td colspan="8"
+                            class="empty-row">
+                            Loading parts...
+                        </td>
+                    </tr>
+                }
+                else if (items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="8"
+                            class="empty-row">
+                            No parts have been added yet.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in items)
+                    {
+                        <tr>
+
+                            <td>
+                                <strong>
+                                    @Display(item.PartNumber)
+                                </strong>
+                            </td>
+
+                            <td>
+                                @item.Description
+                            </td>
+
+                            <td>
+                                @Display(item.PreferredSupplierName)
+                            </td>
+
+                            <td>
+                                @item.DefaultUnitCost.ToString("C")
+                            </td>
+
+                            <td>
+                                @item.DefaultUnitPrice.ToString("C")
+                            </td>
+
+                            <td>
+                                @item.SupplierCount
+                            </td>
+
+                            <td>
+                                <span class="badge">
+                                    @(item.IsActive
+                                                                ? "Active"
+                                                                : "Inactive")
+                                                                         </span>
+                                                                     </td>
+
+                            <td class="row-actions">
+
+                                <button type="button"
+                                        class="btn small secondary"
+                                        @onclick="() => EditPart(item)">
+                                    Edit
+                                </button>
+
+                                <button type="button"
+                                        class="btn small secondary"
+                                        @onclick="() => ManageSuppliers(item)">
+                                    Suppliers
+                                </button>
+
+                                <button type="button"
+                                        class="btn small secondary"
+                                        @onclick="() => ToggleActive(item)">
+
+                                    @(item.IsActive
+                                                                ? "Deactivate"
+                                                                : "Activate")
+
+                        </button>
+
+                            </td>
+
+                        </tr>
+                                }
+                }
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+@code
+{
+    private List<PartDto> items = [];
+    private List<SupplierDto> suppliers = [];
+    private List<PartSupplierDto> partSuppliers = [];
+
+    private PartDto edit = NewPartModel();
+    private PartDto? supplierPart;
+
+    private PartSupplierSaveRequest supplierEdit =
+        NewSupplierModel();
+
+    private int? editingSupplierId;
+
+    private bool loading;
+    private bool saving;
+    private bool showForm;
+
+    private bool loadingSuppliers;
+    private bool savingSupplier;
+
+    private string? message;
+    private string? error;
+
+    private string? supplierMessage;
+    private string? supplierError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        loading = true;
+        error = null;
+
+        try
+        {
+            items =
+                await Api.Get<List<PartDto>>(
+                    "api/Parts")
+                ?? [];
+
+            suppliers =
+                await Api.Get<List<SupplierDto>>(
+                    "api/Suppliers")
+                ?? [];
+        }
+        catch (Exception ex)
+        {
+            error =
+                "Unable to load parts. " +
+                ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void NewPart()
+    {
+        message = null;
+        error = null;
+
+        edit = NewPartModel();
+        showForm = true;
+    }
+
+    private void EditPart(PartDto item)
+    {
+        message = null;
+        error = null;
+
+        edit = new PartDto
+        {
+            Id = item.Id,
+            PartNumber = item.PartNumber,
+            Description = item.Description,
+            PreferredSupplierId =
+                item.PreferredSupplierId,
+            PreferredSupplierName =
+                item.PreferredSupplierName,
+            DefaultUnitCost =
+                item.DefaultUnitCost,
+            DefaultUnitPrice =
+                item.DefaultUnitPrice,
+            IsActive = item.IsActive,
+            SupplierCount =
+                item.SupplierCount,
+            CreatedAt = item.CreatedAt,
+            UpdatedAt = item.UpdatedAt
+        };
+
+        showForm = true;
+    }
+
+    private async Task Save()
+    {
+        message = null;
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(
+            edit.Description))
+        {
+            error =
+                "Part description is required.";
+            return;
+        }
+
+        if (edit.DefaultUnitCost < 0 ||
+            edit.DefaultUnitPrice < 0)
+        {
+            error =
+                "Part cost and price cannot be negative.";
+            return;
+        }
+
+        saving = true;
+
+        try
+        {
+            var request =
+                new PartCatalogSaveRequest
+                {
+                    PartNumber =
+                        Clean(edit.PartNumber),
+
+                    Description =
+                        edit.Description.Trim(),
+
+                    PreferredSupplierId =
+                        edit.PreferredSupplierId,
+
+                    DefaultUnitCost =
+                        edit.DefaultUnitCost,
+
+                    DefaultUnitPrice =
+                        edit.DefaultUnitPrice,
+
+                    IsActive =
+                        edit.IsActive
+                };
+
+            var success =
+                edit.Id == 0
+                    ? await Api.Post(
+                        "api/Parts",
+                        request)
+                    : await Api.Put(
+                        $"api/Parts/{edit.Id}",
+                        request);
+
+            if (!success)
+            {
+                error =
+                    "The part could not be saved.";
+                return;
+            }
+
+            message =
+                edit.Id == 0
+                    ? "Part created successfully."
+                    : "Part updated successfully.";
+
+            showForm = false;
+            edit = NewPartModel();
+
+            await Load();
+        }
+        catch (Exception ex)
+        {
+            error =
+                "The part could not be saved. " +
+                ex.Message;
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task ToggleActive(
+        PartDto item)
+    {
+        message = null;
+        error = null;
+
+        var active =
+            !item.IsActive;
+
+        var success =
+            await Api.Patch(
+                $"api/Parts/{item.Id}/active?active={active.ToString().ToLowerInvariant()}",
+                new { });
+
+        if (!success)
+        {
+            error =
+                "Part status could not be changed.";
+            return;
+        }
+
+        message =
+            active
+                ? "Part activated."
+                : "Part deactivated.";
+
+        await Load();
+    }
+
+    private void Cancel()
+    {
+        showForm = false;
+        error = null;
+        edit = NewPartModel();
+    }
+
+    private async Task ManageSuppliers(
+        PartDto item)
+    {
+        supplierPart = item;
+
+        supplierMessage = null;
+        supplierError = null;
+
+        editingSupplierId = null;
+        supplierEdit = NewSupplierModel();
+
+        await LoadPartSuppliers();
+    }
+
+    private async Task LoadPartSuppliers()
+    {
+        if (supplierPart is null)
+        {
+            return;
+        }
+
+        loadingSuppliers = true;
+
+        try
+        {
+            partSuppliers =
+                await Api.Get<List<PartSupplierDto>>(
+                    $"api/Parts/{supplierPart.Id}/suppliers")
+                ?? [];
+        }
+        catch (Exception ex)
+        {
+            supplierError =
+                "Unable to load part suppliers. " +
+                ex.Message;
+        }
+        finally
+        {
+            loadingSuppliers = false;
+        }
+    }
+
+    private void EditSupplier(
+        PartSupplierDto link)
+    {
+        editingSupplierId = link.Id;
+
+        supplierMessage = null;
+        supplierError = null;
+
+        supplierEdit =
+            new PartSupplierSaveRequest
+            {
+                SupplierId =
+                    link.SupplierId,
+
+                SupplierPartNumber =
+                    link.SupplierPartNumber,
+
+                LastCost =
+                    link.LastCost,
+
+                IsPreferred =
+                    link.IsPreferred
+            };
+    }
+
+    private async Task SaveSupplier()
+    {
+        supplierMessage = null;
+        supplierError = null;
+
+        if (supplierPart is null)
+        {
+            return;
+        }
+
+        if (supplierEdit.SupplierId <= 0)
+        {
+            supplierError =
+                "Please select a supplier.";
+            return;
+        }
+
+        if (supplierEdit.LastCost.HasValue &&
+            supplierEdit.LastCost.Value < 0)
+        {
+            supplierError =
+                "Last cost cannot be negative.";
+            return;
+        }
+
+        savingSupplier = true;
+
+        try
+        {
+            var success =
+                await Api.Post(
+                    $"api/Parts/{supplierPart.Id}/suppliers",
+                    supplierEdit);
+
+            if (!success)
+            {
+                supplierError =
+                    "The supplier could not be saved.";
+                return;
+            }
+
+            supplierMessage =
+                editingSupplierId.HasValue
+                    ? "Supplier updated successfully."
+                    : "Supplier linked successfully.";
+
+            editingSupplierId = null;
+            supplierEdit = NewSupplierModel();
+
+            await LoadPartSuppliers();
+            await Load();
+
+            supplierPart =
+                items.FirstOrDefault(
+                    x => x.Id == supplierPart.Id)
+                ?? supplierPart;
+        }
+        catch (Exception ex)
+        {
+            supplierError =
+                "The supplier could not be saved. " +
+                ex.Message;
+        }
+        finally
+        {
+            savingSupplier = false;
+        }
+    }
+
+    private async Task RemoveSupplier(
+        PartSupplierDto link)
+    {
+        if (supplierPart is null)
+        {
+            return;
+        }
+
+        supplierMessage = null;
+        supplierError = null;
+
+        var success =
+            await Api.Delete(
+                $"api/Parts/{supplierPart.Id}/suppliers/{link.SupplierId}");
+
+        if (!success)
+        {
+            supplierError =
+                "The supplier link could not be removed.";
+            return;
+        }
+
+        supplierMessage =
+            "Supplier removed from part.";
+
+        if (editingSupplierId == link.Id)
+        {
+            editingSupplierId = null;
+            supplierEdit = NewSupplierModel();
+        }
+
+        await LoadPartSuppliers();
+        await Load();
+
+        supplierPart =
+            items.FirstOrDefault(
+                x => x.Id == supplierPart.Id)
+            ?? supplierPart;
+    }
+
+    private void CancelSupplierEdit()
+    {
+        editingSupplierId = null;
+        supplierEdit = NewSupplierModel();
+
+        supplierError = null;
+    }
+
+    private void CloseSuppliers()
+    {
+        supplierPart = null;
+
+        partSuppliers = [];
+
+        editingSupplierId = null;
+        supplierEdit = NewSupplierModel();
+
+        supplierMessage = null;
+        supplierError = null;
+    }
+
+    private static PartDto NewPartModel()
+    {
+        return new PartDto
+        {
+            IsActive = true
+        };
+    }
+
+    private static PartSupplierSaveRequest
+        NewSupplierModel()
+    {
+        return new PartSupplierSaveRequest
+        {
+            IsPreferred = false
+        };
+    }
+
+    private static string PartDisplay(
+        PartDto item)
+    {
+        return string.IsNullOrWhiteSpace(
+            item.PartNumber)
+            ? item.Description
+            : $"{item.PartNumber} - {item.Description}";
+    }
+
+    private static string Display(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "-"
+            : value;
+    }
+
+    private static string? Clean(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+    }
+}

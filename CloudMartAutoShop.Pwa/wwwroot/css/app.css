@@ -574,3 +574,124 @@
         border-bottom: 1px solid var(--border);
     }
 }
+/* Responsive data tables */
+.table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.table-wrap table {
+    width: 100%;
+    table-layout: auto;
+}
+
+.table-wrap th,
+.table-wrap td {
+    vertical-align: middle;
+}
+
+.table-wrap td {
+    overflow-wrap: anywhere;
+}
+
+/* Allow multiple row actions to use available space */
+.table-wrap .row-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    white-space: normal;
+}
+
+.table-wrap .row-actions .btn {
+    white-space: nowrap;
+}
+
+/* Keep numeric values compact */
+.table-wrap th:nth-last-child(n),
+.table-wrap td:nth-last-child(n) {
+    vertical-align: middle;
+}
+
+/* Tablet / smaller desktop */
+@media (max-width: 1200px) {
+    .content {
+        padding: 20px;
+    }
+
+    .panel {
+        padding: 16px;
+    }
+
+    .table-wrap th,
+    .table-wrap td {
+        padding: 10px 8px;
+    }
+
+    .table-wrap .row-actions {
+        gap: 6px;
+    }
+}
+
+/* Phone */
+@media (max-width: 600px) {
+    .content {
+        padding: 12px;
+    }
+
+    .panel {
+        padding: 12px;
+    }
+
+    .toolbar {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table-wrap table {
+        min-width: 720px;
+    }
+}
+/* Keep currency and numeric table values together */
+.table-wrap td:nth-child(4),
+.table-wrap td:nth-child(5) {
+    white-space: nowrap;
+}
+
+/* Parts catalog table */
+.parts-table-wrap td:nth-child(4),
+.parts-table-wrap td:nth-child(5) {
+    white-space: nowrap;
+}
+
+/* Desktop table readability */
+@media (min-width: 901px) {
+    .table-wrap td {
+        overflow-wrap: normal;
+        word-break: normal;
+    }
+
+    .table-wrap th,
+    .table-wrap td {
+        white-space: nowrap;
+    }
+
+    .table-wrap .row-actions {
+        white-space: normal;
+        flex-wrap: wrap;
+    }
+
+    /* Allow descriptive text to wrap where needed */
+    .parts-table-wrap th:nth-child(2),
+    .parts-table-wrap td:nth-child(2),
+    .parts-table-wrap th:nth-child(3),
+    .parts-table-wrap td:nth-child(3) {
+        white-space: normal;
+    }
+}

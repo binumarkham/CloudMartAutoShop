@@ -316,9 +316,67 @@ public class UserSaveRequest
     public bool IsActive { get; set; } = true;
 }
 
-public class RepairOrderPartDto { public int Id { get; set; } public int? SupplierId { get; set; } public string? SupplierName { get; set; } public string? PartNumber { get; set; } public string Description { get; set; } = ""; public decimal Quantity { get; set; } public decimal UnitCost { get; set; } public decimal UnitPrice { get; set; } public decimal LineTotal { get; set; } public DateTime CreatedAt { get; set; } }
-public class PartSaveRequest { public int? SupplierId { get; set; } public string? PartNumber { get; set; } public string Description { get; set; } = ""; public decimal Quantity { get; set; } = 1m; public decimal UnitCost { get; set; } public decimal UnitPrice { get; set; } }
-public class PartCatalogDto { public int Id { get; set; } public int? SupplierId { get; set; } public string? SupplierName { get; set; } public string? PartNumber { get; set; } public string Description { get; set; } = ""; public decimal UnitCost { get; set; } public decimal UnitPrice { get; set; } }
+public class RepairOrderPartDto
+{
+    public int Id { get; set; }
+
+    public int? PartId { get; set; }
+
+    public int? SupplierId { get; set; }
+
+    public string? SupplierName { get; set; }
+
+    public string? PartNumber { get; set; }
+
+    public string Description { get; set; } = "";
+
+    public decimal Quantity { get; set; }
+
+    public decimal UnitCost { get; set; }
+
+    public decimal UnitPrice { get; set; }
+
+    public decimal LineTotal { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+}
+public class PartSaveRequest
+{
+    public int? PartId { get; set; }
+
+    public int? SupplierId { get; set; }
+
+    public string? PartNumber { get; set; }
+
+    public string Description { get; set; } = "";
+
+    public decimal Quantity { get; set; } = 1m;
+
+    public decimal UnitCost { get; set; }
+
+    public decimal UnitPrice { get; set; }
+}
+
+public class PartCatalogDto
+{
+    public int Id { get; set; }
+
+    public string? PartNumber { get; set; }
+
+    public string Description { get; set; } = "";
+
+    public int? SupplierId { get; set; }
+
+    public string? SupplierName { get; set; }
+
+    public decimal UnitCost { get; set; }
+
+    public decimal UnitPrice { get; set; }
+
+    public int? PreferredSupplierId { get; set; }
+
+    public string? PreferredSupplierName { get; set; }
+}
 public class PaymentDto { public int Id { get; set; } public decimal Amount { get; set; } public DateTime PaymentDate { get; set; } public string PaymentMethod { get; set; } = ""; public string? ReferenceNumber { get; set; } public string? Notes { get; set; } public DateTime CreatedAt { get; set; } }
 public class RepairOrderReportDto { public string RepairOrderNumber { get; set; } = ""; public string? InvoiceNumber { get; set; } public string Customer { get; set; } = ""; public string Vehicle { get; set; } = ""; public DateTime OpenedDate { get; set; } public string Status { get; set; } = ""; public decimal TotalAmount { get; set; } public decimal AmountPaid { get; set; } public decimal Balance { get; set; } }
 public class SalesReportDto { public decimal TotalLabor { get; set; } public decimal TotalParts { get; set; } public decimal TotalTax { get; set; } public decimal TotalSales { get; set; } public decimal TotalPaid { get; set; } public List<SalesRowDto> Rows { get; set; } = []; }
@@ -326,3 +384,62 @@ public class SalesRowDto { public string RepairOrderNumber { get; set; } = ""; p
 public class PaymentReportDto { public DateTime PaymentDate { get; set; } public string RepairOrderNumber { get; set; } = ""; public string Customer { get; set; } = ""; public decimal Amount { get; set; } public string PaymentMethod { get; set; } = ""; public string? ReferenceNumber { get; set; } }
 public class PartsReportDto { public string? Supplier { get; set; } public string RepairOrderNumber { get; set; } = ""; public string? PartNumber { get; set; } public string Description { get; set; } = ""; public decimal Quantity { get; set; } public decimal UnitCost { get; set; } public decimal UnitPrice { get; set; } public decimal LineTotal { get; set; } public DateTime CreatedAt { get; set; } }
 public class TechnicianHoursReportDto { public string Technician { get; set; } = ""; public decimal Hours { get; set; } public decimal LaborAmount { get; set; } public int Entries { get; set; } }
+public class PartDto
+{
+    public int Id { get; set; }
+    public string? PartNumber { get; set; }
+    public string Description { get; set; } = "";
+
+    public int? PreferredSupplierId { get; set; }
+    public string? PreferredSupplierName { get; set; }
+
+    public decimal DefaultUnitCost { get; set; }
+    public decimal DefaultUnitPrice { get; set; }
+
+    public bool IsActive { get; set; } = true;
+
+    public int SupplierCount { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+}
+
+public class PartCatalogSaveRequest
+{
+    public string? PartNumber { get; set; }
+    public string Description { get; set; } = "";
+
+    public int? PreferredSupplierId { get; set; }
+
+    public decimal DefaultUnitCost { get; set; }
+    public decimal DefaultUnitPrice { get; set; }
+
+    public bool IsActive { get; set; } = true;
+}
+
+public class PartSupplierDto
+{
+    public int Id { get; set; }
+    public int PartId { get; set; }
+
+    public int SupplierId { get; set; }
+    public string SupplierName { get; set; } = "";
+
+    public bool SupplierIsActive { get; set; }
+
+    public string? SupplierPartNumber { get; set; }
+    public decimal? LastCost { get; set; }
+
+    public bool IsPreferred { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class PartSupplierSaveRequest
+{
+    public int SupplierId { get; set; }
+    public string? SupplierPartNumber { get; set; }
+    public decimal? LastCost { get; set; }
+    public bool IsPreferred { get; set; }
+}

@@ -165,8 +165,12 @@ public class RepairOrdersController(
                     .Select(p => new
                     {
                         p.Id,
+                        p.PartId,
                         p.SupplierId,
-                        SupplierName = p.Supplier != null ? p.Supplier.Name : null,
+                        SupplierName =
+                            p.Supplier != null
+                                ? p.Supplier.Name
+                                : null,
                         p.PartNumber,
                         p.Description,
                         p.Quantity,
@@ -230,15 +234,15 @@ public class RepairOrdersController(
                 request.RepairOrderNumber.Trim(),
 
             InvoiceNumber =
-    Clean(request.InvoiceNumber),
+                Clean(request.InvoiceNumber),
 
             OpenedDate =
-    ToUtc(request.OpenedDate),
+                ToUtc(request.OpenedDate),
 
             CompletedDate =
-    GetCompletedDate(
-        request.Status,
-        request.CompletedDate),
+                GetCompletedDate(
+                    request.Status,
+                    request.CompletedDate),
 
             MileageIn = request.MileageIn,
             MileageOut = request.MileageOut,
@@ -257,8 +261,12 @@ public class RepairOrdersController(
             TechnicianName =
                 Clean(request.TechnicianName),
 
-            AssignedTechnicianUserId = request.AssignedTechnicianUserId,
-            AssignedTechnicianName = await GetTechnicianName(request.AssignedTechnicianUserId),
+            AssignedTechnicianUserId =
+                request.AssignedTechnicianUserId,
+
+            AssignedTechnicianName =
+                await GetTechnicianName(
+                    request.AssignedTechnicianUserId),
 
             Notes =
                 Clean(request.Notes),
@@ -344,7 +352,7 @@ public class RepairOrdersController(
             Clean(request.InvoiceNumber);
 
         repairOrder.OpenedDate =
-    ToUtc(request.OpenedDate);
+            ToUtc(request.OpenedDate);
 
         repairOrder.CompletedDate =
             GetCompletedDate(
@@ -372,8 +380,12 @@ public class RepairOrdersController(
         repairOrder.TechnicianName =
             Clean(request.TechnicianName);
 
-        repairOrder.AssignedTechnicianUserId = request.AssignedTechnicianUserId;
-        repairOrder.AssignedTechnicianName = await GetTechnicianName(request.AssignedTechnicianUserId);
+        repairOrder.AssignedTechnicianUserId =
+            request.AssignedTechnicianUserId;
+
+        repairOrder.AssignedTechnicianName =
+            await GetTechnicianName(
+                request.AssignedTechnicianUserId);
 
         repairOrder.Notes =
             Clean(request.Notes);
@@ -384,6 +396,7 @@ public class RepairOrdersController(
                 : request.TaxAmount;
 
         await Recalculate(repairOrder);
+
         return Ok(new { repairOrder.Id });
     }
 
@@ -454,62 +467,152 @@ public class RepairOrdersController(
     [HttpGet("parts/catalog")]
     public async Task<IActionResult> GetPartsCatalog()
     {
-        var parts = await db.RepairOrderParts
+        var catalog = await db.Parts
             .AsNoTracking()
-            .Where(x => x.BusinessId == BusinessId)
-            .OrderByDescending(x => x.Id)
+            .Where(x =>
+                x.BusinessId == BusinessId &&
+                x.IsActive)
+            .OrderBy(x => x.PartNumber)
+            .ThenBy(x => x.Description)
             .Select(x => new
             {
                 x.Id,
-                x.SupplierId,
-                SupplierName = x.Supplier != null ? x.Supplier.Name : null,
                 x.PartNumber,
                 x.Description,
-                x.UnitCost,
-                x.UnitPrice
+
+                SupplierId =
+                    x.PreferredSupplierId,
+
+                SupplierName =
+                    x.PreferredSupplier != null
+                        ? x.PreferredSupplier.Name
+                        : null,
+
+                UnitCost =
+                    x.DefaultUnitCost,
+
+                UnitPrice =
+                    x.DefaultUnitPrice,
+
+                x.PreferredSupplierId,
+
+                PreferredSupplierName =
+                    x.PreferredSupplier != null
+                        ? x.PreferredSupplier.Name
+                        : null
             })
             .ToListAsync();
-
-        var catalog = parts
-            .GroupBy(x => string.IsNullOrWhiteSpace(x.PartNumber)
-                ? "DESC:" + x.Description.Trim().ToUpperInvariant()
-                : "PART:" + x.PartNumber.Trim().ToUpperInvariant())
-            .Select(g => g.First())
-            .OrderBy(x => x.PartNumber ?? x.Description)
-            .ToList();
 
         return Ok(catalog);
     }
 
     [HttpPut("{id:int}/parts/{partId:int}")]
-    public async Task<IActionResult> UpdatePart(int id, int partId, PartSaveRequest request)
+    public async Task<IActionResult> UpdatePart(
+        int id,
+        int partId,
+        PartSaveRequest request)
     {
-        var repairOrder = await Find(id);
-        if (repairOrder is null) return NotFound();
+        var repairOrder =
+            await Find(id);
 
-        var line = repairOrder.PartLines.SingleOrDefault(x => x.Id == partId && x.BusinessId == BusinessId);
-        if (line is null) return NotFound();
-        if (string.IsNullOrWhiteSpace(request.Description)) return BadRequest("Part description is required.");
-        if (request.Quantity <= 0) return BadRequest("Part quantity must be greater than zero.");
-        if (request.UnitCost < 0 || request.UnitPrice < 0) return BadRequest("Part cost and price cannot be negative.");
+        if (repairOrder is null)
+        {
+            return NotFound();
+        }
+
+        var line =
+            repairOrder.PartLines
+                .SingleOrDefault(x =>
+                    x.Id == partId &&
+                    x.BusinessId == BusinessId);
+
+        if (line is null)
+        {
+            return NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(
+            request.Description))
+        {
+            return BadRequest(
+                "Part description is required.");
+        }
+
+        if (request.Quantity <= 0)
+        {
+            return BadRequest(
+                "Part quantity must be greater than zero.");
+        }
+
+        if (request.UnitCost < 0 ||
+            request.UnitPrice < 0)
+        {
+            return BadRequest(
+                "Part cost and price cannot be negative.");
+        }
+
+        if (request.PartId.HasValue)
+        {
+            var partExists =
+                await db.Parts.AnyAsync(x =>
+                    x.Id == request.PartId.Value &&
+                    x.BusinessId == BusinessId &&
+                    x.IsActive);
+
+            if (!partExists)
+            {
+                return BadRequest(
+                    "The selected part is invalid or inactive.");
+            }
+        }
 
         if (request.SupplierId.HasValue)
         {
-            var supplierExists = await db.Suppliers.AnyAsync(x =>
-                x.Id == request.SupplierId.Value && x.BusinessId == BusinessId && x.IsActive);
-            if (!supplierExists) return BadRequest("The selected supplier is invalid or inactive.");
+            var supplierExists =
+                await db.Suppliers.AnyAsync(x =>
+                    x.Id == request.SupplierId.Value &&
+                    x.BusinessId == BusinessId &&
+                    x.IsActive);
+
+            if (!supplierExists)
+            {
+                return BadRequest(
+                    "The selected supplier is invalid or inactive.");
+            }
         }
 
-        line.SupplierId = request.SupplierId;
-        line.PartNumber = Clean(request.PartNumber);
-        line.Description = request.Description.Trim();
-        line.Quantity = request.Quantity;
-        line.UnitCost = request.UnitCost;
-        line.UnitPrice = request.UnitPrice;
-        line.LineTotal = request.Quantity * request.UnitPrice;
+        line.PartId =
+            request.PartId;
+
+        line.SupplierId =
+            request.SupplierId;
+
+        line.PartNumber =
+            Clean(request.PartNumber);
+
+        line.Description =
+            request.Description.Trim();
+
+        line.Quantity =
+            request.Quantity;
+
+        line.UnitCost =
+            request.UnitCost;
+
+        line.UnitPrice =
+            request.UnitPrice;
+
+        line.LineTotal =
+            request.Quantity *
+            request.UnitPrice;
 
         await Recalculate(repairOrder);
-        return Ok(new { repairOrder.Id, PartId = line.Id });
+
+        return Ok(new
+        {
+            repairOrder.Id,
+            PartId = line.Id
+        });
     }
 
     [HttpPost("{id:int}/parts")]
@@ -550,54 +653,83 @@ public class RepairOrdersController(
                 "Unit price cannot be negative.");
         }
 
-        if (request.SupplierId.HasValue)
+        if (request.PartId.HasValue)
         {
-            var supplierExists = await db.Suppliers.AnyAsync(x =>
-                x.Id == request.SupplierId.Value &&
-                x.BusinessId == BusinessId &&
-                x.IsActive);
+            var partExists =
+                await db.Parts.AnyAsync(x =>
+                    x.Id == request.PartId.Value &&
+                    x.BusinessId == BusinessId &&
+                    x.IsActive);
 
-            if (!supplierExists)
+            if (!partExists)
             {
-                return BadRequest("The selected supplier is invalid or inactive.");
+                return BadRequest(
+                    "The selected part is invalid or inactive.");
             }
         }
 
-        repairOrder.PartLines.Add(
-            new RepairOrderPart
+        if (request.SupplierId.HasValue)
+        {
+            var supplierExists =
+                await db.Suppliers.AnyAsync(x =>
+                    x.Id == request.SupplierId.Value &&
+                    x.BusinessId == BusinessId &&
+                    x.IsActive);
+
+            if (!supplierExists)
             {
-                BusinessId = BusinessId,
+                return BadRequest(
+                    "The selected supplier is invalid or inactive.");
+            }
+        }
 
-                SupplierId = request.SupplierId,
+        var partLine = new RepairOrderPart
+        {
+            BusinessId = BusinessId,
 
-                PartNumber =
-                    Clean(request.PartNumber),
+            PartId =
+         request.PartId,
 
-                Description =
-                    request.Description.Trim(),
+            SupplierId =
+         request.SupplierId,
 
-                Quantity =
-                    request.Quantity,
+            PartNumber =
+         Clean(request.PartNumber),
 
-                UnitCost =
-                    request.UnitCost,
+            Description =
+         request.Description.Trim(),
 
-                UnitPrice =
-                    request.UnitPrice,
+            Quantity =
+         request.Quantity,
 
-                LineTotal =
-                    request.Quantity *
-                    request.UnitPrice,
+            UnitCost =
+         request.UnitCost,
 
-                CreatedByUserId = UserId,
-                CreatedByName = UserName,
+            UnitPrice =
+         request.UnitPrice,
 
-                CreatedAt = DateTime.UtcNow
-            });
+            LineTotal =
+         request.Quantity *
+         request.UnitPrice,
+
+            CreatedByUserId =
+         UserId,
+
+            CreatedByName =
+         UserName,
+
+            CreatedAt =
+         DateTime.UtcNow
+        };
+
+        repairOrder.PartLines.Add(partLine);
 
         await Recalculate(repairOrder);
 
-        return Ok(new { repairOrder.Id });
+        return Ok(new
+        {
+            repairOrder.Id
+        });
     }
 
     [HttpPost("{id:int}/payments")]
@@ -635,7 +767,7 @@ public class RepairOrdersController(
                     request.Amount,
 
                 PaymentDate =
-    ToUtc(request.PaymentDate),
+                    ToUtc(request.PaymentDate),
 
                 PaymentMethod =
                     request.PaymentMethod,
@@ -646,15 +778,22 @@ public class RepairOrdersController(
                 Notes =
                     Clean(request.Notes),
 
-                CreatedByUserId = UserId,
-                CreatedByName = UserName,
+                CreatedByUserId =
+                    UserId,
 
-                CreatedAt = DateTime.UtcNow
+                CreatedByName =
+                    UserName,
+
+                CreatedAt =
+                    DateTime.UtcNow
             });
 
         await Recalculate(repairOrder);
 
-        return Ok(new { repairOrder.Id });
+        return Ok(new
+        {
+            repairOrder.Id
+        });
     }
 
     private async Task<RepairOrder?> Find(
@@ -723,25 +862,31 @@ public class RepairOrdersController(
 
         if (request.AssignedTechnicianUserId.HasValue)
         {
-            var technicianIsValid = await db.Users
-                .AsNoTracking()
-                .AnyAsync(x =>
-                    x.Id == request.AssignedTechnicianUserId.Value &&
-                    x.BusinessId == BusinessId &&
-                    x.IsActive &&
-                    x.Role == "Technician");
+            var technicianIsValid =
+                await db.Users
+                    .AsNoTracking()
+                    .AnyAsync(x =>
+                        x.Id ==
+                            request.AssignedTechnicianUserId.Value &&
+                        x.BusinessId ==
+                            BusinessId &&
+                        x.IsActive &&
+                        x.Role ==
+                            "Technician");
 
             if (!technicianIsValid)
             {
-                return BadRequest("The assigned technician is invalid or inactive.");
+                return BadRequest(
+                    "The assigned technician is invalid or inactive.");
             }
         }
 
-        var customer = await db.Customers
-            .AsNoTracking()
-            .SingleOrDefaultAsync(x =>
-                x.Id == request.CustomerId &&
-                x.BusinessId == BusinessId);
+        var customer =
+            await db.Customers
+                .AsNoTracking()
+                .SingleOrDefaultAsync(x =>
+                    x.Id == request.CustomerId &&
+                    x.BusinessId == BusinessId);
 
         if (customer is null)
         {
@@ -749,11 +894,12 @@ public class RepairOrdersController(
                 "The selected customer is invalid.");
         }
 
-        var vehicle = await db.Vehicles
-            .AsNoTracking()
-            .SingleOrDefaultAsync(x =>
-                x.Id == request.VehicleId &&
-                x.BusinessId == BusinessId);
+        var vehicle =
+            await db.Vehicles
+                .AsNoTracking()
+                .SingleOrDefaultAsync(x =>
+                    x.Id == request.VehicleId &&
+                    x.BusinessId == BusinessId);
 
         if (vehicle is null)
         {
@@ -806,7 +952,7 @@ public class RepairOrdersController(
     }
 
     private async Task Recalculate(
-      RepairOrder repairOrder)
+        RepairOrder repairOrder)
     {
         repairOrder.LaborSubtotal =
             repairOrder.LaborLines
@@ -871,7 +1017,8 @@ public class RepairOrdersController(
         return null;
     }
 
-    private async Task<string?> GetTechnicianName(int? userId)
+    private async Task<string?> GetTechnicianName(
+        int? userId)
     {
         if (!userId.HasValue)
         {
@@ -880,7 +1027,9 @@ public class RepairOrdersController(
 
         return await db.Users
             .AsNoTracking()
-            .Where(x => x.Id == userId.Value && x.BusinessId == BusinessId)
+            .Where(x =>
+                x.Id == userId.Value &&
+                x.BusinessId == BusinessId)
             .Select(x => x.Name)
             .SingleOrDefaultAsync();
     }
@@ -892,7 +1041,4 @@ public class RepairOrdersController(
             ? null
             : value.Trim();
     }
-
-  
-   
 }

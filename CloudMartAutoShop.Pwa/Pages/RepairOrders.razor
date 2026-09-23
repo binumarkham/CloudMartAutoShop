@@ -1066,7 +1066,16 @@
         savingPart = true;
         try
         {
-            var request = new PartSaveRequest { SupplierId = part.SupplierId, PartNumber = Clean(part.PartNumber), Description = part.Description.Trim(), Quantity = part.Quantity, UnitCost = part.UnitCost, UnitPrice = part.UnitPrice };
+            var request = new PartSaveRequest
+            {
+                PartId = part.PartId,
+                SupplierId = part.SupplierId,
+                PartNumber = Clean(part.PartNumber),
+                Description = part.Description.Trim(),
+                Quantity = part.Quantity,
+                UnitCost = part.UnitCost,
+                UnitPrice = part.UnitPrice
+            };
             var success = editingPartId.HasValue
                 ? await Api.Put($"api/RepairOrders/{edit.Id}/parts/{editingPartId.Value}", request)
                 : await Api.Post($"api/RepairOrders/{edit.Id}/parts", request);
@@ -1084,10 +1093,13 @@
     {
         editingPartId = line.Id;
         selectedCatalogId = 0;
+
         partMessage = null;
         partError = null;
+
         part = new PartSaveRequest
         {
+            PartId = line.PartId,
             SupplierId = line.SupplierId,
             PartNumber = line.PartNumber,
             Description = line.Description,
@@ -1108,21 +1120,41 @@
 
     private void SelectCatalogPart(ChangeEventArgs e)
     {
-        if (!int.TryParse(e.Value?.ToString(), out selectedCatalogId) || selectedCatalogId <= 0)
+        if (!int.TryParse(
+                e.Value?.ToString(),
+                out selectedCatalogId) ||
+            selectedCatalogId <= 0)
         {
             selectedCatalogId = 0;
+
+            // Returning to manual entry means this line is
+            // no longer linked to a master catalog Part.
+            part.PartId = null;
+
             return;
         }
 
-        var saved = partCatalog.FirstOrDefault(x => x.Id == selectedCatalogId);
-        if (saved is null) return;
+        var saved =
+            partCatalog.FirstOrDefault(
+                x => x.Id == selectedCatalogId);
 
+        if (saved is null)
+        {
+            part.PartId = null;
+            return;
+        }
+
+        part.PartId = saved.Id;
         part.SupplierId = saved.SupplierId;
         part.PartNumber = saved.PartNumber;
         part.Description = saved.Description;
         part.UnitCost = saved.UnitCost;
         part.UnitPrice = saved.UnitPrice;
-        if (part.Quantity <= 0) part.Quantity = 1m;
+
+        if (part.Quantity <= 0)
+        {
+            part.Quantity = 1m;
+        }
     }
 
     private async Task RefreshRepairOrderList()

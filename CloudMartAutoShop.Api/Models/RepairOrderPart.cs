@@ -8,6 +8,7 @@ public class RepairOrderPart
 
     public int BusinessId { get; set; }
     public int RepairOrderId { get; set; }
+public int? PartId { get; set; }
 
     public int? SupplierId { get; set; }
 
@@ -34,6 +35,6 @@ public class RepairOrderPart
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public RepairOrder RepairOrder { get; set; } = null!;
-
+public Part? Part { get; set; }
     public Supplier? Supplier { get; set; }
 }
