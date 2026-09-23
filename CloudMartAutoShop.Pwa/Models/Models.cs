@@ -443,3 +443,7 @@ public class PartSupplierSaveRequest
     public decimal? LastCost { get; set; }
     public bool IsPreferred { get; set; }
 }
+public class CreateRepairOrderResponse
+{
+    public int Id { get; set; }
+}

@@ -99,6 +99,31 @@ public class ApiService(
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<TResult?> Post<TRequest, TResult>(
+        string url,
+        TRequest data)
+    {
+        await ApplyAuthentication();
+
+        var response =
+            await http.PostAsJsonAsync(
+                url,
+                data);
+
+        if (await HandleUnauthorized(response))
+        {
+            return default;
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return default;
+        }
+
+        return await response.Content
+            .ReadFromJsonAsync<TResult>();
+    }
+
     public async Task<bool> Put<T>(
         string url,
         T data)

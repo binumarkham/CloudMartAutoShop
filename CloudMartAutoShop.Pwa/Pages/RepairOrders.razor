@@ -471,8 +471,14 @@
 
                 <div class="labor-section">
                     <div class="section-heading"><div><h3>Parts</h3><p>Add parts and materials used on this repair order.</p></div></div>
-                    @if (!string.IsNullOrWhiteSpace(partMessage)) { <div class="alert success">@partMessage</div> }
-                    @if (!string.IsNullOrWhiteSpace(partError)) { <div class="alert error">@partError</div> }
+                    @if (!string.IsNullOrWhiteSpace(partMessage))
+                    {
+                        <div class="alert success">@partMessage</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(partError))
+                    {
+                        <div class="alert error">@partError</div>
+                    }
                     <div class="part-catalog-picker">
                         <label>Use Previous Part</label>
                         <select class="form-control" value="@selectedCatalogId" @onchange="SelectCatalogPart">
@@ -485,28 +491,54 @@
                         <small>Selecting a previous part fills supplier, description, cost and selling price. You can still change any value before saving.</small>
                     </div>
                     <div class="part-entry-grid">
-                        <div><label>Supplier</label><InputSelect class="form-control" @bind-Value="part.SupplierId"><option value="">No supplier / Other</option>@foreach (var supplier in suppliers.Where(x => x.IsActive).OrderBy(x => x.Name)) { <option value="@supplier.Id">@supplier.Name</option> }</InputSelect></div>
-                        <div><label>Part Number</label><InputText class="form-control" @bind-Value="part.PartNumber" /></div>
-                        <div class="part-description"><label>Description <span class="required">*</span></label><InputText class="form-control" @bind-Value="part.Description" /></div>
-                        <div><label>Quantity <span class="required">*</span></label><InputNumber class="form-control" @bind-Value="part.Quantity" /></div>
-                        <div><label>Unit Cost</label><InputNumber class="form-control" @bind-Value="part.UnitCost" /></div>
-                        <div><label>Unit Price</label><InputNumber class="form-control" @bind-Value="part.UnitPrice" /></div>
-                        <div><label>Line Total</label><div class="calculated-value">@PartPreviewTotal.ToString("C")</div></div>
+                        <div>
+                            <label>Supplier</label><InputSelect class="form-control" @bind-Value="part.SupplierId">
+                                <option value="">No supplier / Other</option>@foreach (var supplier in suppliers.Where(x => x.IsActive).OrderBy(x => x.Name)) {
+                                <option value="@supplier.Id">@supplier.Name</option>
+                            }
+                        </InputSelect>
                     </div>
-                    <div class="labor-actions">
-                        <button type="button" class="btn" disabled="@savingPart" @onclick="SavePart">@(savingPart ? "Saving..." : editingPartId.HasValue ? "Save Part Changes" : "+ Add Part")</button>
-                        @if (editingPartId.HasValue) { <button type="button" class="btn secondary" disabled="@savingPart" @onclick="CancelPartEdit">Cancel Edit</button> }
-                    </div>
-                    <div class="table-wrap labor-table"><table><thead><tr><th>Supplier</th><th>Part Number</th><th>Description</th><th>Qty</th><th>Unit Cost</th><th>Unit Price</th><th>Line Total</th><th>Actions</th></tr></thead><tbody>
-                        @if (loadingDetail) { <tr><td colspan="8" class="empty-row">Loading parts...</td></tr> }
-                        else if (detail is null || detail.PartLines.Count == 0) { <tr><td colspan="8" class="empty-row">No parts have been added yet.</td></tr> }
-                        else { @foreach (var line in detail.PartLines) { <tr><td>@DisplayValue(line.SupplierName)</td><td>@DisplayValue(line.PartNumber)</td><td>@line.Description</td><td>@line.Quantity.ToString("0.###")</td><td>@line.UnitCost.ToString("C")</td><td>@line.UnitPrice.ToString("C")</td><td><strong>@line.LineTotal.ToString("C")</strong></td><td><button type="button" class="btn small secondary" @onclick="() => EditPart(line)">Edit</button></td></tr> } }
-                    </tbody></table></div>
+                    <div><label>Part Number</label><InputText class="form-control" @bind-Value="part.PartNumber" /></div>
+                    <div class="part-description"><label>Description <span class="required">*</span></label><InputText class="form-control" @bind-Value="part.Description" /></div>
+                    <div><label>Quantity <span class="required">*</span></label><InputNumber class="form-control" @bind-Value="part.Quantity" /></div>
+                    <div><label>Unit Cost</label><InputNumber class="form-control" @bind-Value="part.UnitCost" /></div>
+                    <div><label>Unit Price</label><InputNumber class="form-control" @bind-Value="part.UnitPrice" /></div>
+                    <div><label>Line Total</label><div class="calculated-value">@PartPreviewTotal.ToString("C")</div></div>
                 </div>
-            }
+                <div class="labor-actions">
+                    <button type="button" class="btn" disabled="@savingPart" @onclick="SavePart">@(savingPart ? "Saving..." : editingPartId.HasValue ? "Save Part Changes" : "+ Add Part")</button>
+                    @if (editingPartId.HasValue)
+                    {
+                        <button type="button" class="btn secondary" disabled="@savingPart" @onclick="CancelPartEdit">Cancel Edit</button>
+                    }
+                </div>
+                <div class="table-wrap labor-table">
+                    <table>
+                        <thead><tr><th>Supplier</th><th>Part Number</th><th>Description</th><th>Qty</th><th>Unit Cost</th><th>Unit Price</th><th>Line Total</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            @if (loadingDetail)
+                            {
+                                <tr><td colspan="8" class="empty-row">Loading parts...</td></tr>
+                            }
+                            else if (detail is null || detail.PartLines.Count == 0)
+                            {
+                                <tr><td colspan="8" class="empty-row">No parts have been added yet.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var line in detail.PartLines)
+                                {
+                                    <tr><td>@DisplayValue(line.SupplierName)</td><td>@DisplayValue(line.PartNumber)</td><td>@line.Description</td><td>@line.Quantity.ToString("0.###")</td><td>@line.UnitCost.ToString("C")</td><td>@line.UnitPrice.ToString("C")</td><td><strong>@line.LineTotal.ToString("C")</strong></td><td><button type="button" class="btn small secondary" @onclick="() => EditPart(line)">Edit</button></td></tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
 
-        </div>
-    }
+    </div>
+        }
 
     <div class="table-wrap">
 
@@ -1022,9 +1054,9 @@
                 };
 
             var success =
-                await Api.Post(
-                    $"api/RepairOrders/{edit.Id}/labor",
-                    request);
+     await Api.Post(
+         $"api/RepairOrders/{edit.Id}/labor",
+         request);
 
             if (!success)
             {
@@ -1357,13 +1389,20 @@
             };
 
             bool success;
+            int? createdRepairOrderId = null;
 
             if (edit.Id == 0)
             {
-                success =
-                    await Api.Post(
+                var result =
+                    await Api.Post<object, CreateRepairOrderResponse>(
                         "api/RepairOrders",
                         request);
+                success = result is not null && result.Id > 0;
+
+                if (success)
+                {
+                    createdRepairOrderId = result!.Id;
+                }
             }
             else
             {
@@ -1381,23 +1420,43 @@
                 return;
             }
 
-            message =
-                edit.Id == 0
-                    ? "Repair order created successfully."
-                    : "Repair order updated successfully.";
+            if (createdRepairOrderId.HasValue)
+            {
+                await Load();
 
-            showForm = false;
+                var createdRepairOrder =
+                    items.FirstOrDefault(
+                        x => x.Id == createdRepairOrderId.Value);
 
-            edit =
-                NewRepairOrderModel();
+                if (createdRepairOrder is not null)
+                {
+                    await EditRepairOrder(createdRepairOrder);
 
-            detail = null;
+                    message =
+                        "Repair order created successfully. " +
+                        "You can now add labor and parts.";
+                }
+                else
+                {
+                    message = "Repair order created successfully.";
+                    showForm = false;
+                    edit = NewRepairOrderModel();
+                    detail = null;
+                    labor = NewLaborModel();
+                    part = NewPartModel();
+                }
+            }
+            else
+            {
+                message = "Repair order updated successfully.";
+                showForm = false;
+                edit = NewRepairOrderModel();
+                detail = null;
+                labor = NewLaborModel();
+                part = NewPartModel();
 
-            labor =
-                NewLaborModel();
-            part = NewPartModel();
-
-            await Load();
+                await Load();
+            }
         }
         catch (Exception ex)
         {
