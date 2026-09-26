@@ -586,9 +586,12 @@
     table-layout: auto;
 }
 
-.table-wrap th,
+.table-wrap th {
+        white-space: nowrap;
+}
+
 .table-wrap td {
-    vertical-align: middle;
+        white-space: normal;
 }
 
 .table-wrap td {
@@ -693,5 +696,175 @@
     .parts-table-wrap th:nth-child(3),
     .parts-table-wrap td:nth-child(3) {
         white-space: normal;
+    }
+}
+/* Repair Order list - keep the 9-column table usable without forcing page width */
+.repair-orders-table table {
+    width: 100%;
+    min-width: 0;
+}
+
+.repair-orders-table th,
+.repair-orders-table td {
+    white-space: normal;
+}
+
+    .repair-orders-table th:nth-child(1),
+    .repair-orders-table td:nth-child(1),
+    .repair-orders-table th:nth-child(2),
+    .repair-orders-table td:nth-child(2),
+    .repair-orders-table th:nth-child(5),
+    .repair-orders-table td:nth-child(5),
+    .repair-orders-table th:nth-child(6),
+    .repair-orders-table td:nth-child(6),
+    .repair-orders-table th:nth-child(7),
+    .repair-orders-table td:nth-child(7),
+    .repair-orders-table th:nth-child(8),
+    .repair-orders-table td:nth-child(8),
+    .repair-orders-table th:nth-child(9),
+    .repair-orders-table td:nth-child(9) {
+        white-space: nowrap;
+    }
+
+    .repair-orders-table th:nth-child(3),
+    .repair-orders-table td:nth-child(3),
+    .repair-orders-table th:nth-child(4),
+    .repair-orders-table td:nth-child(4) {
+        white-space: normal;
+        overflow-wrap: normal;
+    }
+
+@media (max-width: 600px) {
+    .repair-orders-table table {
+        min-width: 680px;
+    }
+}
+.repair-order-link {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    color: #1f67a8;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+}
+
+    .repair-order-link:hover,
+    .repair-order-link:focus {
+        text-decoration: underline;
+    }
+
+    .repair-order-link:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 3px;
+        border-radius: 2px;
+    }
+@media (min-width: 901px) {
+    .repair-orders-table {
+        overflow-x: visible;
+    }
+
+        .repair-orders-table table {
+            width: 100%;
+            min-width: 0;
+            table-layout: auto;
+        }
+}
+/* Repair Orders - mobile card layout */
+
+.repair-orders-mobile {
+    display: none;
+}
+
+@media (max-width: 600px) {
+
+    .repair-orders-table {
+        display: none;
+    }
+
+    .repair-orders-mobile {
+        display: block;
+    }
+
+    .mobile-ro-card {
+        padding: 16px 0;
+        border-bottom: 1px solid #d8e0e8;
+    }
+
+        .mobile-ro-card:first-child {
+            padding-top: 4px;
+        }
+
+        .mobile-ro-card:last-child {
+            border-bottom: 0;
+            padding-bottom: 4px;
+        }
+
+    .mobile-ro-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+        .mobile-ro-header .repair-order-link {
+            font-size: 1.05rem;
+        }
+
+    .mobile-ro-details {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+        .mobile-ro-details > div {
+            display: grid;
+            grid-template-columns: 80px minmax(0, 1fr);
+            gap: 8px;
+            align-items: start;
+        }
+
+    .mobile-ro-label {
+        font-weight: 600;
+        color: #667085;
+    }
+
+    .mobile-ro-totals {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        padding: 12px;
+        background: #f7f9fc;
+        border-radius: 8px;
+    }
+
+        .mobile-ro-totals > div {
+            min-width: 0;
+        }
+
+        .mobile-ro-totals span,
+        .mobile-ro-totals strong {
+            display: block;
+        }
+
+        .mobile-ro-totals span {
+            margin-bottom: 4px;
+            font-size: 0.78rem;
+            color: #667085;
+        }
+
+        .mobile-ro-totals strong {
+            white-space: nowrap;
+            font-size: 0.92rem;
+        }
+
+    .mobile-ro-empty {
+        padding: 20px 0;
+        text-align: center;
+        color: #667085;
     }
 }

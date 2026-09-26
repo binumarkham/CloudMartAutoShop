@@ -464,6 +464,105 @@ public class RepairOrdersController(
         return Ok(new { repairOrder.Id });
     }
 
+    [HttpPut("{id:int}/labor/{laborId:int}")]
+    public async Task<IActionResult> UpdateLabor(
+    int id,
+    int laborId,
+    LaborSaveRequest request)
+    {
+        var repairOrder =
+            await Find(id);
+
+        if (repairOrder is null)
+        {
+            return NotFound();
+        }
+
+        var laborLine =
+            repairOrder.LaborLines
+                .FirstOrDefault(x =>
+                    x.Id == laborId &&
+                    x.BusinessId == BusinessId);
+
+        if (laborLine is null)
+        {
+            return NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(
+            request.Description))
+        {
+            return BadRequest(
+                "Labor description is required.");
+        }
+
+        if (request.Hours <= 0)
+        {
+            return BadRequest(
+                "Labor hours must be greater than zero.");
+        }
+
+        if (request.HourlyRate < 0)
+        {
+            return BadRequest(
+                "Hourly rate cannot be negative.");
+        }
+
+        laborLine.Description =
+            request.Description.Trim();
+
+        laborLine.TechnicianName =
+            Clean(request.TechnicianName);
+
+        laborLine.TechnicianNotes =
+            Clean(request.TechnicianNotes);
+
+        laborLine.Hours =
+            request.Hours;
+
+        laborLine.HourlyRate =
+            request.HourlyRate;
+
+        laborLine.LineTotal =
+            request.Hours *
+            request.HourlyRate;
+
+        await Recalculate(repairOrder);
+
+        return Ok(new { repairOrder.Id });
+    }
+
+    [HttpDelete("{id:int}/labor/{laborId:int}")]
+    public async Task<IActionResult> DeleteLabor(
+        int id,
+        int laborId)
+    {
+        var repairOrder =
+            await Find(id);
+
+        if (repairOrder is null)
+        {
+            return NotFound();
+        }
+
+        var laborLine =
+            repairOrder.LaborLines
+                .FirstOrDefault(x =>
+                    x.Id == laborId &&
+                    x.BusinessId == BusinessId);
+
+        if (laborLine is null)
+        {
+            return NotFound();
+        }
+
+        repairOrder.LaborLines.Remove(
+            laborLine);
+
+        await Recalculate(repairOrder);
+
+        return Ok(new { repairOrder.Id });
+    }
     [HttpGet("parts/catalog")]
     public async Task<IActionResult> GetPartsCatalog()
     {
@@ -757,7 +856,20 @@ public class RepairOrdersController(
         {
             return NotFound();
         }
+        var currentPaid = repairOrder.Payments.Sum(x => x.Amount);
+        var remainingBalance = repairOrder.TotalAmount - currentPaid;
 
+        if (remainingBalance <= 0)
+        {
+            return BadRequest(
+                "This repair order is already fully paid.");
+        }
+
+        if (request.Amount > remainingBalance)
+        {
+            return BadRequest(
+                $"Payment cannot exceed the remaining balance of {remainingBalance:C}.");
+        }
         repairOrder.Payments.Add(
             new Payment
             {

@@ -378,6 +378,18 @@ public class PartCatalogDto
     public string? PreferredSupplierName { get; set; }
 }
 public class PaymentDto { public int Id { get; set; } public decimal Amount { get; set; } public DateTime PaymentDate { get; set; } public string PaymentMethod { get; set; } = ""; public string? ReferenceNumber { get; set; } public string? Notes { get; set; } public DateTime CreatedAt { get; set; } }
+public class PaymentSaveRequest
+{
+    public decimal? Amount { get; set; }
+
+    public DateTime PaymentDate { get; set; } = DateTime.Today;
+
+    public string PaymentMethod { get; set; } = "Other";
+
+    public string? ReferenceNumber { get; set; }
+
+    public string? Notes { get; set; }
+}
 public class RepairOrderReportDto { public string RepairOrderNumber { get; set; } = ""; public string? InvoiceNumber { get; set; } public string Customer { get; set; } = ""; public string Vehicle { get; set; } = ""; public DateTime OpenedDate { get; set; } public string Status { get; set; } = ""; public decimal TotalAmount { get; set; } public decimal AmountPaid { get; set; } public decimal Balance { get; set; } }
 public class SalesReportDto { public decimal TotalLabor { get; set; } public decimal TotalParts { get; set; } public decimal TotalTax { get; set; } public decimal TotalSales { get; set; } public decimal TotalPaid { get; set; } public List<SalesRowDto> Rows { get; set; } = []; }
 public class SalesRowDto { public string RepairOrderNumber { get; set; } = ""; public string Customer { get; set; } = ""; public DateTime OpenedDate { get; set; } public decimal LaborSubtotal { get; set; } public decimal PartsSubtotal { get; set; } public decimal TaxAmount { get; set; } public decimal TotalAmount { get; set; } public decimal AmountPaid { get; set; } }

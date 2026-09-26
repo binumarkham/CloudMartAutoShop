@@ -384,10 +384,21 @@
                         @onclick="AddLabor">
 
                     @(savingLabor
-                                        ? "Adding..."
+                                        ? "Saving..."
+                                        : editingLaborId.HasValue
+                                        ? "Save Labor Changes"
                                         : "+ Add Labor")
 
                 </button>
+                @if (editingLaborId.HasValue)
+                        {
+                            <button type="button"
+                                    class="btn secondary"
+                                    disabled="@savingLabor"
+                                    @onclick="CancelLaborEdit">
+                                Cancel Edit
+                            </button>
+                        }
             </div>
 
                     <div class="table-wrap labor-table">
@@ -401,6 +412,7 @@
                                     <th>Hours</th>
                                     <th>Hourly Rate</th>
                                     <th>Line Total</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
 
@@ -409,7 +421,7 @@
                         @if (loadingDetail)
                                 {
                                     <tr>
-                                        <td colspan="6"
+                                        <td colspan="7"
                                             class="empty-row">
                                             Loading labor...
                                         </td>
@@ -419,7 +431,7 @@
                                 detail.LaborLines.Count == 0)
                                 {
                                     <tr>
-                                        <td colspan="6"
+                                        <td colspan="7"
                                             class="empty-row">
                                             No labor has been added yet.
                                         </td>
@@ -457,6 +469,24 @@
                                                 <strong>
                                                     @line.LineTotal.ToString("C")
                                                 </strong>
+                                            </td>
+                                            <td>
+                                                <div class="row-actions">
+
+                                                    <button type="button"
+                                                            class="btn small secondary"
+                                                            @onclick="() => EditLabor(line)">
+                                                        Edit
+                                                    </button>
+
+                                                    <button type="button"
+                                                            class="btn small secondary"
+                                                            disabled="@savingLabor"
+                                                            @onclick="() => DeleteLabor(line)">
+                                                        Delete
+                                                    </button>
+
+                                                </div>
                                             </td>
                                         </tr>
                                                 }
@@ -535,12 +565,128 @@
                     </table>
                 </div>
             </div>
+
+            <div class="labor-section">
+                <div class="section-heading">
+                    <div>
+                        <h3>Payments</h3>
+                        <p>Record customer payments for this repair order.</p>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(paymentMessage))
+                {
+                    <div class="alert success">@paymentMessage</div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(paymentError))
+                {
+                    <div class="alert error">@paymentError</div>
+                }
+
+                @if (edit.Balance > 0)
+                {
+                    <div class="part-entry-grid">
+                        <div>
+                            <label>Amount <span class="required">*</span></label>
+                            <InputNumber @bind-Value="payment.Amount"
+                                         class="form-control"
+                                         step="0.01"
+                                         format="0.00" />
+                            <small>Remaining balance: @edit.Balance.ToString("C")</small>
+                        </div>
+
+                        <div>
+                            <label>Payment Date <span class="required">*</span></label>
+                            <InputDate class="form-control" @bind-Value="payment.PaymentDate" />
+                        </div>
+
+                        <div>
+                            <label>Payment Method <span class="required">*</span></label>
+                            <InputSelect class="form-control" @bind-Value="payment.PaymentMethod">
+                                <option value="Cash">Cash</option>
+                                <option value="Debit">Debit</option>
+                                <option value="Credit Card">Credit Card</option>
+                                <option value="E-Transfer">E-Transfer</option>
+                                <option value="Cheque">Cheque</option>
+                                <option value="Other">Other</option>
+                            </InputSelect>
+                        </div>
+
+                        <div>
+                            <label>Reference Number</label>
+                            <InputText class="form-control" @bind-Value="payment.ReferenceNumber" />
+                        </div>
+
+                        <div class="part-description">
+                            <label>Notes</label>
+                            <InputText class="form-control" @bind-Value="payment.Notes" />
+                        </div>
+                    </div>
+
+                    <div class="labor-actions">
+                        <button type="button"
+                                class="btn"
+                                disabled="@savingPayment"
+                                @onclick="RecordPayment">
+                            @(savingPayment ? "Recording..." : "Record Payment")
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert success">
+                        This repair order is fully paid.
+                    </div>
+                }
+
+                <div class="table-wrap labor-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Method</th>
+                                <th>Reference</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (loadingDetail)
+                            {
+                                <tr>
+                                    <td colspan="5" class="empty-row">Loading payments...</td>
+                                </tr>
+                            }
+                            else if (detail is null || detail.Payments.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="5" class="empty-row">No payments have been recorded yet.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var paymentLine in detail.Payments)
+                                {
+                                    <tr>
+                                        <td>@ToLocalDate(paymentLine.PaymentDate).ToString("MMM d, yyyy")</td>
+                                        <td><strong>@paymentLine.Amount.ToString("C")</strong></td>
+                                        <td>@paymentLine.PaymentMethod</td>
+                                        <td>@DisplayValue(paymentLine.ReferenceNumber)</td>
+                                        <td>@DisplayValue(paymentLine.Notes)</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         }
 
     </div>
         }
 
-    <div class="table-wrap">
+    <div class="table-wrap repair-orders-table">
 
         <table>
 
@@ -554,7 +700,6 @@
                     <th>Total</th>
                     <th>Paid</th>
                     <th>Balance</th>
-                    <th class="actions-column">Actions</th>
                 </tr>
             </thead>
 
@@ -563,7 +708,7 @@
                 @if (loading)
                 {
                     <tr>
-                        <td colspan="9"
+                        <td colspan="8"
                             class="empty-row">
                             Loading repair orders...
                         </td>
@@ -572,7 +717,7 @@
                 else if (items.Count == 0)
                 {
                     <tr>
-                        <td colspan="9"
+                        <td colspan="8"
                             class="empty-row">
                             No repair orders have been created yet.
                         </td>
@@ -585,12 +730,14 @@
                         <tr>
 
                             <td>
-                                <strong>
+                                <button type="button"
+                                        class="repair-order-link"
+                                        title="Open repair order"
+                                        @onclick="() => EditRepairOrder(repairOrder)">
                                     @repairOrder.RepairOrderNumber
-                                </strong>
+                                </button>
 
-                                @if (!string.IsNullOrWhiteSpace(
-                                                        repairOrder.InvoiceNumber))
+                                @if (!string.IsNullOrWhiteSpace(repairOrder.InvoiceNumber))
                                 {
                                     <small class="table-secondary">
                                         Invoice @repairOrder.InvoiceNumber
@@ -630,22 +777,7 @@
                                 </strong>
                             </td>
 
-                            <td class="row-actions">
-
-                                <button type="button"
-                                        class="action-button"
-                                        title="Edit repair order"
-                                        @onclick="() => EditRepairOrder(repairOrder)">
-
-                                    <svg viewBox="0 0 24 24"
-                                         aria-hidden="true">
-                                        <path d="M12 20h9" />
-                                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                                    </svg>
-
-                                </button>
-
-                            </td>
+                            
 
                         </tr>
                     }
@@ -657,6 +789,87 @@
 
     </div>
 
+    <div class="repair-orders-mobile">
+
+        @if (loading)
+        {
+            <div class="mobile-ro-empty">
+                Loading repair orders...
+            </div>
+        }
+        else if (items.Count == 0)
+        {
+            <div class="mobile-ro-empty">
+                No repair orders have been created yet.
+            </div>
+        }
+        else
+        {
+            @foreach (var repairOrder in items)
+            {
+                <div class="mobile-ro-card">
+
+                    <div class="mobile-ro-header">
+                        <div>
+                            <button type="button"
+                                    class="repair-order-link"
+                                    title="Open repair order"
+                                    @onclick="() => EditRepairOrder(repairOrder)">
+                                @repairOrder.RepairOrderNumber
+                            </button>
+
+                            @if (!string.IsNullOrWhiteSpace(repairOrder.InvoiceNumber))
+                            {
+                                <small class="table-secondary">
+                                    Invoice @repairOrder.InvoiceNumber
+                                </small>
+                            }
+                        </div>
+
+                        <span class="badge">
+                            @repairOrder.Status
+                        </span>
+                    </div>
+
+                    <div class="mobile-ro-details">
+                        <div>
+                            <span class="mobile-ro-label">Date</span>
+                            <span>@repairOrder.OpenedDate.ToString("yyyy-MM-dd")</span>
+                        </div>
+
+                        <div>
+                            <span class="mobile-ro-label">Customer</span>
+                            <span>@repairOrder.CustomerName</span>
+                        </div>
+
+                        <div>
+                            <span class="mobile-ro-label">Vehicle</span>
+                            <span>@repairOrder.Vehicle</span>
+                        </div>
+                    </div>
+
+                    <div class="mobile-ro-totals">
+                        <div>
+                            <span>Total</span>
+                            <strong>@repairOrder.TotalAmount.ToString("C")</strong>
+                        </div>
+
+                        <div>
+                            <span>Paid</span>
+                            <strong>@repairOrder.AmountPaid.ToString("C")</strong>
+                        </div>
+
+                        <div>
+                            <span>Balance</span>
+                            <strong>@repairOrder.Balance.ToString("C")</strong>
+                        </div>
+                    </div>
+
+                </div>
+            }
+        }
+
+    </div>
 </div>
 
 @code
@@ -684,6 +897,7 @@
     private List<PartCatalogDto> partCatalog = [];
     private int selectedCatalogId;
     private int? editingPartId;
+    private int? editingLaborId;
 
     private RepairOrderDto edit =
         NewRepairOrderModel();
@@ -695,6 +909,8 @@
 
     private PartSaveRequest part =
         NewPartModel();
+    private PaymentSaveRequest payment =
+        NewPaymentModel();
 
     private bool showForm;
     private bool loading;
@@ -703,6 +919,7 @@
     private bool loadingDetail;
     private bool savingLabor;
     private bool savingPart;
+    private bool savingPayment;
 
     private string? message;
     private string? error;
@@ -711,6 +928,8 @@
     private string? laborError;
     private string? partMessage;
     private string? partError;
+    private string? paymentMessage;
+    private string? paymentError;
 
     private decimal LaborPreviewTotal => labor.Hours * labor.HourlyRate;
     private decimal PartPreviewTotal => part.Quantity * part.UnitPrice;
@@ -782,6 +1001,9 @@
         detail = null;
         labor = NewLaborModel();
         part = NewPartModel();
+        payment = NewPaymentModel();
+        paymentMessage = null;
+        paymentError = null;
 
         edit = NewRepairOrderModel();
 
@@ -833,6 +1055,9 @@
         detail = null;
         labor = NewLaborModel();
         part = NewPartModel();
+        payment = NewPaymentModel();
+        paymentMessage = null;
+        paymentError = null;
 
         edit = new RepairOrderDto
         {
@@ -956,6 +1181,7 @@
             }
 
             ApplyTotals(detail);
+            
         }
         catch (Exception ex)
         {
@@ -1054,22 +1280,33 @@
                 };
 
             var success =
-     await Api.Post(
-         $"api/RepairOrders/{edit.Id}/labor",
-         request);
+    editingLaborId.HasValue
+        ? await Api.Put(
+            $"api/RepairOrders/{edit.Id}/labor/{editingLaborId.Value}",
+            request)
+        : await Api.Post(
+            $"api/RepairOrders/{edit.Id}/labor",
+            request);
 
             if (!success)
             {
                 laborError =
-                    "The labor line could not be added.";
+                    editingLaborId.HasValue
+                        ? "The labor line could not be updated."
+                        : "The labor line could not be added.";
+
                 return;
             }
 
             laborMessage =
-                "Labor added successfully.";
+                editingLaborId.HasValue
+                    ? "Labor updated successfully."
+                    : "Labor added successfully.";
 
             labor =
                 NewLaborModel();
+
+            editingLaborId = null;
 
             await LoadRepairOrderDetail(
                 edit.Id);
@@ -1087,7 +1324,77 @@
             savingLabor = false;
         }
     }
+    private void EditLabor(
+    RepairOrderLaborDto line)
+    {
+        editingLaborId = line.Id;
 
+        laborMessage = null;
+        laborError = null;
+
+        labor = new LaborSaveRequest
+        {
+            Description = line.Description,
+            TechnicianName = line.TechnicianName,
+            TechnicianNotes = line.TechnicianNotes,
+            Hours = line.Hours,
+            HourlyRate = line.HourlyRate
+        };
+    }
+
+    private async Task DeleteLabor(
+        RepairOrderLaborDto line)
+    {
+        laborMessage = null;
+        laborError = null;
+
+        savingLabor = true;
+
+        try
+        {
+            var success =
+                await Api.Delete(
+                    $"api/RepairOrders/{edit.Id}/labor/{line.Id}");
+
+            if (!success)
+            {
+                laborError =
+                    "The labor line could not be deleted.";
+                return;
+            }
+
+            if (editingLaborId == line.Id)
+            {
+                editingLaborId = null;
+                labor = NewLaborModel();
+            }
+
+            laborMessage =
+                "Labor deleted successfully.";
+
+            await LoadRepairOrderDetail(
+                edit.Id);
+
+            await RefreshRepairOrderList();
+        }
+        catch (Exception ex)
+        {
+            laborError =
+                "The labor line could not be deleted. " +
+                ex.Message;
+        }
+        finally
+        {
+            savingLabor = false;
+        }
+    }
+    private void CancelLaborEdit()
+    {
+        editingLaborId = null;
+        labor = NewLaborModel();
+        laborMessage = null;
+        laborError = null;
+    }
     private async Task SavePart()
     {
         partMessage = null; partError = null;
@@ -1120,7 +1427,102 @@
         catch (Exception ex) { partError = "The part line could not be added. " + ex.Message; }
         finally { savingPart = false; }
     }
+    private async Task RecordPayment()
+    {
+        paymentMessage = null;
+        paymentError = null;
 
+        if (edit.Id <= 0)
+        {
+            paymentError =
+                "Save the repair order before recording a payment.";
+            return;
+        }
+
+        if (!payment.Amount.HasValue || payment.Amount.Value <= 0)
+        {
+            paymentError =
+                "Payment amount must be greater than zero.";
+            return;
+        }
+
+        if (edit.Balance <= 0)
+        {
+            paymentError =
+                "This repair order has no outstanding balance.";
+            return;
+        }
+
+        if (payment.Amount.Value > edit.Balance)
+        {
+            paymentError =
+                $"Payment cannot exceed the remaining balance of " +
+                $"{edit.Balance:C}.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(payment.PaymentMethod))
+        {
+            paymentError =
+                "Please select a payment method.";
+            return;
+        }
+
+        savingPayment = true;
+
+        try
+        {
+            var request = new PaymentSaveRequest
+            {
+                Amount = payment.Amount.Value,
+
+                PaymentDate =
+                    ToUtc(payment.PaymentDate),
+
+                PaymentMethod =
+                    payment.PaymentMethod,
+
+                ReferenceNumber =
+                    Clean(payment.ReferenceNumber),
+
+                Notes =
+                    Clean(payment.Notes)
+            };
+
+            var success =
+                await Api.Post(
+                    $"api/RepairOrders/{edit.Id}/payments",
+                    request);
+
+            if (!success)
+            {
+                paymentError =
+                    "The payment could not be recorded.";
+                return;
+            }
+
+            paymentMessage =
+                $"Payment of {payment.Amount.Value:C} recorded successfully.";
+
+            payment =
+                NewPaymentModel();
+
+            await LoadRepairOrderDetail(
+                edit.Id);
+
+            await RefreshRepairOrderList();
+        }
+        catch (Exception ex)
+        {
+            paymentError =
+                "The payment could not be recorded. " +
+                ex.Message;
+        }
+        finally
+        {
+            savingPayment = false;
+        }
+    }
     private void EditPart(RepairOrderPartDto line)
     {
         editingPartId = line.Id;
@@ -1220,6 +1622,7 @@
         labor =
             NewLaborModel();
         part = NewPartModel();
+        payment = NewPaymentModel();
 
         showForm = false;
 
@@ -1228,6 +1631,8 @@
         laborMessage = null;
         partError = null;
         partMessage = null;
+        paymentError = null;
+        paymentMessage = null;
     }
 
     private void CustomerChanged(
@@ -1471,6 +1876,17 @@
     }
 
     private static PartSaveRequest NewPartModel() => new() { Quantity = 1m };
+    private static PaymentSaveRequest NewPaymentModel()
+    {
+        return new PaymentSaveRequest
+        {
+            Amount = null,
+            PaymentDate = DateTime.Today,
+            PaymentMethod = "Other",
+            ReferenceNumber = null,
+            Notes = null
+        };
+    }
 
     private static string DisplayValue(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
 
