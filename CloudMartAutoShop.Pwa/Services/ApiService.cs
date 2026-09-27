@@ -39,12 +39,14 @@ public class ApiService(
                 "localStorage.setItem",
                 "businessName",
                 result.BusinessName);
-
             await js.InvokeVoidAsync(
                 "localStorage.setItem",
                 "userName",
                 result.Name);
-
+            await js.InvokeVoidAsync(
+                "localStorage.setItem",
+                "userEmail",
+                result.Email);
             await js.InvokeVoidAsync(
                 "localStorage.setItem",
                 "userRole",

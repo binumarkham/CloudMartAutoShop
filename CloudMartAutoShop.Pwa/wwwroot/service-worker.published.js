@@ -1,4 +1,4 @@
-﻿// CloudMart Auto Shop release 1.0.10
+﻿// CloudMart Auto Shop release 1.0.12
 self.importScripts('./service-worker-assets.js');
 
 self.addEventListener('message', event => {
@@ -117,6 +117,10 @@ async function onFetch(event) {
 
     return cachedResponse || fetch(request);
 }
+
+
+
+
 
 
 

@@ -14,7 +14,7 @@
             <div>
                 <strong>CloudMart Data</strong>
                 <small>Small Business Portal</small>
-                <small>v1.0.10</small>
+                <small>v1.0.12</small>
             </div>
         </div>
 
@@ -35,13 +35,18 @@
                 <div class="header-account">
                     <div class="header-user">
                         <strong>@businessName</strong>
-                        <span>@userName</span>
+                        <span>@userEmail</span>
                     </div>
 
                     <button class="header-logout" @onclick="OpenMyAccount">
                         My Account
                     </button>
-
+                    @if (isAdministrator)
+                    {
+                        <button class="header-logout" @onclick="OpenUsers">
+                            Users
+                        </button>
+                    }
                     <button class="header-logout" @onclick="Logout">
                         Logout
                     </button>
@@ -50,7 +55,7 @@
         </header>
 
         <div class="mobile-version">
-            Auto Shop &bull; v1.0.10
+            Auto Shop &bull; v1.0.12
         </div>
 
         @if (_updateAvailable)
@@ -77,12 +82,13 @@
 </div>
 
 @code {
-    private const string CurrentVersion = "1.0.10";
+    private const string CurrentVersion = "1.0.12";
 
     private bool isLoggedIn;
     private string userName = "";
+    private string userEmail = "";
     private string businessName = "";
-
+    private bool isAdministrator;
     private bool _updateAvailable;
     private string _latestVersion = "";
     private DotNetObjectReference<MainLayout>? _dotNetReference;
@@ -102,10 +108,27 @@
             userName = await JS.InvokeAsync<string?>(
                 "localStorage.getItem",
                 "userName") ?? "User";
-
+            userEmail = await JS.InvokeAsync<string?>(
+                "localStorage.getItem",
+                "userEmail") ?? "";
             businessName = await JS.InvokeAsync<string?>(
                 "localStorage.getItem",
                 "businessName") ?? "";
+
+            var role = await JS.InvokeAsync<string?>(
+"localStorage.getItem",
+"userRole") ?? "";
+
+            isAdministrator =
+                string.Equals(
+                    role,
+                    "Administrator",
+                    StringComparison.OrdinalIgnoreCase)
+                ||
+                string.Equals(
+                    role,
+                    "Admin",
+                    StringComparison.OrdinalIgnoreCase);
         }
     }
 
@@ -200,6 +223,10 @@
     {
         Nav.NavigateTo("my-account");
     }
+    private void OpenUsers()
+    {
+        Nav.NavigateTo("users");
+    }
     private async Task Logout()
     {
         await Api.Logout();
@@ -220,6 +247,10 @@
         public string Version { get; set; } = "";
     }
 }
+
+
+
+
 
 
 
