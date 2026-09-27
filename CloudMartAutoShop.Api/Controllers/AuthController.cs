@@ -134,4 +134,49 @@ public class AuthController(
             ExpiresAt = expiresAt
         });
     }
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(
+    ChangePasswordRequest request)
+    {
+        var userIdText =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+            User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+        if (!int.TryParse(userIdText, out var userId))
+        {
+            return Unauthorized("User context is missing.");
+        }
+
+        var user = await db.Users
+            .SingleOrDefaultAsync(x => x.Id == userId);
+
+        if (user is null || !user.IsActive)
+        {
+            return Unauthorized("User account is not available.");
+        }
+
+        var passwordHasher = new PasswordHasher<User>();
+
+        var currentPasswordResult =
+            passwordHasher.VerifyHashedPassword(
+                user,
+                user.PasswordHash,
+                request.CurrentPassword);
+
+        if (currentPasswordResult ==
+            PasswordVerificationResult.Failed)
+        {
+            return BadRequest("Current password is incorrect.");
+        }
+
+        user.PasswordHash =
+            passwordHasher.HashPassword(
+                user,
+                request.NewPassword);
+
+        await db.SaveChangesAsync();
+
+        return NoContent();
+    }
 }

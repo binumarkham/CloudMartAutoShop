@@ -1,4 +1,4 @@
-﻿// CloudMart Auto Shop release 1.0.5
+﻿// CloudMart Auto Shop release 1.0.10
 self.importScripts('./service-worker-assets.js');
 
 self.addEventListener('message', event => {
@@ -97,11 +97,19 @@ async function onFetch(event) {
     }
 
     // Auto Shop SPA navigation.
+    // Prefer the current application shell from the network.
+    // Use the cached shell only when the network is unavailable.
     if (request.mode === 'navigate') {
-        const cache = await caches.open(cacheName);
+        try {
+            return await fetch(request, {
+                cache: 'no-store'
+            });
+        }
+        catch {
+            const cache = await caches.open(cacheName);
 
-        return (await cache.match('index.html')) ??
-            fetch(request);
+            return await cache.match('index.html');
+        }
     }
 
     const cachedResponse =
@@ -109,6 +117,12 @@ async function onFetch(event) {
 
     return cachedResponse || fetch(request);
 }
+
+
+
+
+
+
 
 
 

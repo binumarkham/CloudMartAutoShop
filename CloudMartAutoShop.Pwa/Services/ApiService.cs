@@ -98,7 +98,39 @@ public class ApiService(
 
         return response.IsSuccessStatusCode;
     }
+    public async Task<(bool Success, string? Error)> PostWithError<T>(
+    string url,
+    T data)
+    {
+        await ApplyAuthentication();
 
+        var response =
+            await http.PostAsJsonAsync(
+                url,
+                data);
+
+        if (await HandleUnauthorized(response))
+        {
+            return (false, null);
+        }
+
+        if (response.IsSuccessStatusCode)
+        {
+            return (true, null);
+        }
+
+        var error =
+            await response.Content.ReadAsStringAsync();
+
+        if (string.IsNullOrWhiteSpace(error))
+        {
+            error = "The request could not be completed.";
+        }
+
+        return (
+            false,
+            error.Trim().Trim('"'));
+    }
     public async Task<TResult?> Post<TRequest, TResult>(
         string url,
         TRequest data)

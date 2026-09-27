@@ -1,0 +1,143 @@
+﻿@page "/my-account"
+@inject ApiService Api
+
+<PageTitle>My Account - CloudMart Auto Shop</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>My Account</h1>
+        <p>Manage your account and password.</p>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="form-header">
+        <div>
+            <h3>Change Password</h3>
+            <p>Enter your current password and choose a new password.</p>
+        </div>
+    </div>
+
+    <div class="form-grid">
+        <div>
+            <label>Current Password</label>
+            <input type="password"
+                   @bind="model.CurrentPassword"
+                   autocomplete="current-password" />
+        </div>
+
+        <div>
+            <label>New Password</label>
+            <input type="password"
+                   @bind="model.NewPassword"
+                   autocomplete="new-password"
+                   placeholder="Minimum 8 characters" />
+        </div>
+
+        <div>
+            <label>Confirm New Password</label>
+            <input type="password"
+                   @bind="model.ConfirmNewPassword"
+                   autocomplete="new-password" />
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="error">@errorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="success">@successMessage</div>
+    }
+
+    <div class="form-actions">
+        <button class="btn"
+                @onclick="ChangePassword"
+                disabled="@saving">
+            @(saving ? "Changing..." : "Change Password")
+        </button>
+    </div>
+</div>
+
+@code {
+    private ChangePasswordModel model = new();
+    private bool saving;
+    private string? errorMessage;
+    private string? successMessage;
+
+    private async Task ChangePassword()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        if (string.IsNullOrWhiteSpace(model.CurrentPassword))
+        {
+            errorMessage = "Current password is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(model.NewPassword))
+        {
+            errorMessage = "New password is required.";
+            return;
+        }
+
+        if (model.NewPassword.Length < 8)
+        {
+            errorMessage =
+                "New password must be at least 8 characters.";
+            return;
+        }
+
+        if (model.NewPassword != model.ConfirmNewPassword)
+        {
+            errorMessage =
+                "New password and confirmation do not match.";
+            return;
+        }
+
+        if (model.CurrentPassword == model.NewPassword)
+        {
+            errorMessage =
+                "New password must be different from the current password.";
+            return;
+        }
+
+        saving = true;
+
+        try
+        {
+            var result =
+                await Api.PostWithError(
+                    "api/Auth/change-password",
+                    model);
+
+            if (!result.Success)
+            {
+                errorMessage =
+                    result.Error ??
+                    "Unable to change the password.";
+
+                return;
+            }
+
+            model = new ChangePasswordModel();
+
+            successMessage =
+                "Your password was changed successfully.";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private sealed class ChangePasswordModel
+    {
+        public string CurrentPassword { get; set; } = "";
+        public string NewPassword { get; set; } = "";
+        public string ConfirmNewPassword { get; set; } = "";
+    }
+}

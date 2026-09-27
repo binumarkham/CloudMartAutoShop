@@ -47,147 +47,155 @@
         <span class="dismiss">×</span>
     </div>
 
-    <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        window.cloudMartAutoShopPwa = {
+            registration: null,
+            updateIntervalId: null,
+            visibilityHandler: null,
+            dotNetReference: null,
 
-<script>
-    window.cloudMartAutoShopPwa = {
-        registration: null,
-        updateIntervalId: null,
-        visibilityHandler: null,
-        dotNetReference: null,
+            setDotNetReference: function (dotNetReference) {
+                this.dotNetReference = dotNetReference;
+            },
 
-        setDotNetReference: function (dotNetReference) {
-            this.dotNetReference = dotNetReference;
-        },
+            initialize: async function () {
+                if (!("serviceWorker" in navigator)) {
+                    return;
+                }
 
-        initialize: async function () {
-            if (!("serviceWorker" in navigator)) {
-                return;
+                try {
+                    const registration =
+                        await navigator.serviceWorker.register(
+                            "service-worker.js",
+                            {
+                                updateViaCache: "none"
+                            }
+                        );
+
+                    this.registration = registration;
+
+                    // Check immediately when Auto Shop starts.
+                    await registration.update();
+
+                    // Check every 5 minutes while the app remains open.
+                    if (!this.updateIntervalId) {
+                        this.updateIntervalId =
+                            setInterval(async () => {
+                                try {
+                                    await this.registration.update();
+
+                                    if (this.dotNetReference) {
+                                        await this.dotNetReference.invokeMethodAsync(
+                                            "CheckForUpdateFromBrowser"
+                                        );
+                                    }
+                                }
+                                catch (error) {
+                                    console.log(
+                                        "Auto Shop service worker update check failed.",
+                                        error
+                                    );
+                                }
+                            }, 5 * 60 * 1000);
+                    }
+
+                    // Check whenever the user returns to the app.
+                    if (!this.visibilityHandler) {
+                        this.visibilityHandler =
+                            async () => {
+                                if (
+                                    document.visibilityState !== "visible" ||
+                                    !this.registration
+                                ) {
+                                    return;
+                                }
+
+                                try {
+                                    await this.registration.update();
+
+                                    if (this.dotNetReference) {
+                                        await this.dotNetReference.invokeMethodAsync(
+                                            "CheckForUpdateFromBrowser"
+                                        );
+                                    }
+                                }
+                                catch (error) {
+                                    console.log(
+                                        "Auto Shop resume update check failed.",
+                                        error
+                                    );
+                                }
+                            };
+
+                        document.addEventListener(
+                            "visibilitychange",
+                            this.visibilityHandler
+                        );
+                    }
+                }
+                catch (error) {
+                    console.log(
+                        "Auto Shop service worker registration failed.",
+                        error
+                    );
+                }
+            },
+
+            updateNow: async function () {   
+                    const registration =
+                        await navigator.serviceWorker.getRegistration();
+
+                    if (registration?.waiting) {
+                        registration.waiting.postMessage({
+                            type: "SKIP_WAITING"
+                        });
+
+                        return true;
+                    }
+
+                    return false;
+                }
+        };
+
+        navigator.serviceWorker.addEventListener(
+            "controllerchange",
+            () => {
+                window.location.reload();
             }
+        );
 
-            try {
+            window.cloudMartAutoShopForceUpdate = async function () {
+                const activatedWorker =
+                    await window.cloudMartAutoShopPwa.updateNow();
+
+                if (activatedWorker) {
+                    return;
+                }
+
+                // Ask the browser to check once more for a new worker.
                 const registration =
-                    await navigator.serviceWorker.register(
-                        "service-worker.js"
-                    );
+                    await navigator.serviceWorker.getRegistration();
 
-                this.registration = registration;
+                if (registration) {
+                    await registration.update();
 
-                // Check immediately when Auto Shop starts.
-                await registration.update();
+                    if (registration.waiting) {
+                        registration.waiting.postMessage({
+                            type: "SKIP_WAITING"
+                        });
 
-                // Check every 5 minutes while the app remains open.
-                if (!this.updateIntervalId) {
-                    this.updateIntervalId =
-                        setInterval(async () => {
-                            try {
-                                await this.registration.update();
-
-                                if (this.dotNetReference) {
-                                    await this.dotNetReference.invokeMethodAsync(
-                                        "CheckForUpdateFromBrowser"
-                                    );
-                                }
-                            }
-                            catch (error) {
-                                console.log(
-                                    "Auto Shop service worker update check failed.",
-                                    error
-                                );
-                            }
-                        }, 5 * 60 * 1000);
+                        return;
+                    }
                 }
 
-                // Check whenever the user returns to the app.
-                if (!this.visibilityHandler) {
-                    this.visibilityHandler =
-                        async () => {
-                            if (
-                                document.visibilityState !== "visible" ||
-                                !this.registration
-                            ) {
-                                return;
-                            }
+                // Only use a normal reload when there is
+                // genuinely no waiting worker.
+                window.location.reload();
+            };
 
-                            try {
-                                await this.registration.update();
-
-                                if (this.dotNetReference) {
-                                    await this.dotNetReference.invokeMethodAsync(
-                                        "CheckForUpdateFromBrowser"
-                                    );
-                                }
-                            }
-                            catch (error) {
-                                console.log(
-                                    "Auto Shop resume update check failed.",
-                                    error
-                                );
-                            }
-                        };
-
-                    document.addEventListener(
-                        "visibilitychange",
-                        this.visibilityHandler
-                    );
-                }
-            }
-            catch (error) {
-                console.log(
-                    "Auto Shop service worker registration failed.",
-                    error
-                );
-            }
-        },
-
-        updateNow: function () {
-            if (
-                this.registration &&
-                this.registration.waiting
-            ) {
-                this.registration.waiting.postMessage({
-                    type: "SKIP_WAITING"
-                });
-
-                return true;
-            }
-
-            return false;
-        }
-    };
-
-    navigator.serviceWorker.addEventListener(
-        "controllerchange",
-        () => {
-            window.location.reload();
-        }
-    );
-
-    window.cloudMartAutoShopForceUpdate = function () {
-        const activatedWorker =
-            window.cloudMartAutoShopPwa.updateNow();
-
-        if (activatedWorker) {
-            return;
-        }
-
-        // Fallback when version.json changed but
-        // no service worker is currently waiting.
-        const url =
-            new URL(window.location.href);
-
-        url.searchParams.set(
-            "update",
-            Date.now().toString()
-        );
-
-        window.location.replace(
-            url.toString()
-        );
-    };
-
-    window.cloudMartAutoShopPwa.initialize();
-</script>
+        window.cloudMartAutoShopPwa.initialize();
+    </script>
+    <script src="_framework/blazor.webassembly.js"></script>
 </body>
 
 </html>

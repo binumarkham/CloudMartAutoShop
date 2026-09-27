@@ -21,3 +21,16 @@ public class LoginResponse
     public string Role { get; set; } = "";
     public DateTime ExpiresAt { get; set; }
 }
+public class ChangePasswordRequest
+{
+    [Required]
+    public string CurrentPassword { get; set; } = "";
+
+    [Required]
+    [MinLength(8)]
+    public string NewPassword { get; set; } = "";
+
+    [Required]
+    [Compare(nameof(NewPassword))]
+    public string ConfirmNewPassword { get; set; } = "";
+}
