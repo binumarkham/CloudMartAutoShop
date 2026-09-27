@@ -14,7 +14,7 @@
             <div>
                 <strong>CloudMart Data</strong>
                 <small>Small Business Portal</small>
-                <small>v1.0.12</small>
+                <small>v1.0.15</small>
             </div>
         </div>
 
@@ -23,6 +23,12 @@
 
     <main>
         <header class="app-header">
+            <div class="mobile-cloudmart-brand">                
+                <strong>CloudMart Data</strong>
+            </div>
+            <div class="mobile-version">
+                Auto Shop &bull; v1.0.15
+            </div>
             <div class="header-branding">
                 <strong>Auto Shop</strong>
                 <span>Professional Service Management</span>
@@ -54,10 +60,6 @@
             }
         </header>
 
-        <div class="mobile-version">
-            Auto Shop &bull; v1.0.12
-        </div>
-
         @if (_updateAvailable)
         {
             <div class="update-banner">
@@ -82,7 +84,7 @@
 </div>
 
 @code {
-    private const string CurrentVersion = "1.0.12";
+    private const string CurrentVersion = "1.0.15";
 
     private bool isLoggedIn;
     private string userName = "";
@@ -247,6 +249,9 @@
         public string Version { get; set; } = "";
     }
 }
+
+
+
 
 
 

@@ -959,3 +959,84 @@
         padding-right: 6px;
     }
 }
+/* =========================================================
+   v1.0.13 MOBILE CLOUDMART HEADER
+   Match Service Management / Store Manager mobile branding
+   ========================================================= */
+
+.mobile-cloudmart-brand {
+    display: none;
+}
+
+@media (max-width: 600px) {
+
+    .app-header {
+        padding: 10px 14px;
+        gap: 8px;
+    }
+
+    .mobile-cloudmart-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .mobile-mark {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        flex: 0 0 34px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, .12);
+        font-size: .75rem;
+        font-weight: 700;
+    }
+
+    .mobile-cloudmart-brand strong {
+        font-size: .88rem;
+        white-space: nowrap;
+    }
+
+    .header-branding {
+        flex: 0 0 auto;
+        margin-left: auto;
+        text-align: right;
+    }
+
+        .header-branding strong {
+            display: none;
+        }
+
+        .header-branding span {
+            display: block;
+            font-size: 0;
+            white-space: nowrap;
+        }
+
+            .header-branding span::after {
+                content: "Auto Shop";
+                font-size: .78rem;
+                font-weight: 600;
+            }
+
+    .mobile-version {
+        position: absolute;
+        top: 18px;
+        right: 14px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: #ffffff;
+        font-size: .75rem;
+        font-weight: 600;
+        pointer-events: none;
+    }
+
+    .header-branding {
+        display: none;
+    }
+}
