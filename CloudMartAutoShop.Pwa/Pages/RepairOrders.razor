@@ -56,7 +56,7 @@
                         class="icon-button"
                         title="Close"
                         @onclick="CancelEdit">
-                    ×
+                    Ã—
                 </button>
             </div>
 
@@ -66,55 +66,96 @@
                 <div class="form-grid">
 
                     <div>
-                        <label>
-                            Customer
-                            <span class="required">*</span>
-                        </label>
-
-                        <InputSelect TValue="int"
-                                     class="form-control"
-                                     Value="@edit.CustomerId"
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                            <label>Customer <span class="required">*</span></label>
+                            <button type="button" class="btn small secondary" @onclick="OpenQuickCustomer">+ Add Customer</button>
+                        </div>
+                        <InputSelect TValue="int" class="form-control" Value="@edit.CustomerId"
                                      ValueChanged="@((int value) => CustomerChanged(value))"
                                      ValueExpression="@(() => edit.CustomerId)">
-
-                            <option value="0">
-                                Select customer
-                            </option>
-
+                            <option value="0">Select customer</option>
                         @foreach (var customer in SelectableCustomers())
                             {
-                                <option value="@customer.Id">
-                                    @customer.Name
-                                    @(!customer.IsActive ? " (Inactive)" : "")
-                                </option>
+                                <option value="@customer.Id">@customer.Name @(!customer.IsActive ? " (Inactive)" : "")</option>
                             }
-
                         </InputSelect>
                     </div>
 
                     <div>
-                        <label>
-                            Vehicle
-                            <span class="required">*</span>
-                        </label>
-
-                        <InputSelect class="form-control"
-                                     @bind-Value="edit.VehicleId">
-
-                            <option value="0">
-                                Select vehicle
-                            </option>
-
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                            <label>Vehicle <span class="required">*</span></label>
+                            <button type="button" class="btn small secondary" disabled="@(edit.CustomerId <= 0)" @onclick="OpenQuickVehicle">+ Add Vehicle</button>
+                        </div>
+                        <InputSelect class="form-control" @bind-Value="edit.VehicleId">
+                            <option value="0">Select vehicle</option>
                             @foreach (var vehicle in SelectableVehicles())
                             {
-                                <option value="@vehicle.Id">
-                                    @VehicleOption(vehicle)
-                                    @(!vehicle.IsActive ? " (Inactive)" : "")
-                                </option>
+                                <option value="@vehicle.Id">@VehicleOption(vehicle) @(!vehicle.IsActive ? " (Inactive)" : "")</option>
                             }
-
                         </InputSelect>
                     </div>
+
+                    @if (showQuickCustomer)
+                    {
+                        <div class="full">
+                            <div class="edit-panel quick-create-panel" style="margin-top:0;">
+                                <div class="form-header">
+                                    <div><h3>Add Customer</h3><p>Creating a new customer for this Repair Order.</p></div>
+                                    <button type="button" class="icon-button" title="Close" @onclick="CancelQuickCustomer">×</button>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(quickCustomerError))
+                                {
+                                    <div class="alert error">@quickCustomerError</div>
+                                }
+                                <div class="form-grid">
+                                    <div><label>Name <span class="required">*</span></label><InputText class="form-control" @bind-Value="quickCustomer.Name" /></div>
+                                    <div><label>Phone</label><InputText class="form-control" @bind-Value="quickCustomer.Phone" /></div>
+                                    <div><label>Email</label><InputText class="form-control" @bind-Value="quickCustomer.Email" /></div>
+                                    <div class="full"><label>Address</label><InputText class="form-control" @bind-Value="quickCustomer.Address" /></div>
+                                    <div><label>City</label><InputText class="form-control" @bind-Value="quickCustomer.City" /></div>
+                                    <div><label>Province / State</label><InputText class="form-control" @bind-Value="quickCustomer.ProvinceState" /></div>
+                                    <div><label>Postal / ZIP Code</label><InputText class="form-control" @bind-Value="quickCustomer.PostalCode" /></div>
+                                    <div class="full"><label>Notes</label><InputTextArea class="form-control notes" @bind-Value="quickCustomer.Notes" /></div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="button" class="btn" disabled="@savingQuickCustomer" @onclick="SaveQuickCustomer">@(savingQuickCustomer ? "Saving..." : "Save Customer")</button>
+                                    <button type="button" class="btn secondary" disabled="@savingQuickCustomer" @onclick="CancelQuickCustomer">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    @if (showQuickVehicle)
+                    {
+                        <div class="full">
+                            <div class="edit-panel quick-create-panel" style="margin-top:0;">
+                                <div class="form-header">
+                                    <div><h3>Add Vehicle</h3><p>Creating a new vehicle for this Repair Order.</p></div>
+                                    <button type="button" class="icon-button" title="Close" @onclick="CancelQuickVehicle">×</button>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(quickVehicleError))
+                                {
+                                    <div class="alert error">@quickVehicleError</div>
+                                }
+                                <div class="form-grid">
+                                    <div><label>Customer</label><div class="calculated-value">@SelectedCustomerName</div></div>
+                                    <div><label>VIN</label><InputText class="form-control" maxlength="17" @bind-Value="quickVehicle.Vin" /></div>
+                                    <div><label>Year</label><InputNumber class="form-control" @bind-Value="quickVehicle.Year" /></div>
+                                    <div><label>Make</label><InputText class="form-control" @bind-Value="quickVehicle.Make" /></div>
+                                    <div><label>Model</label><InputText class="form-control" @bind-Value="quickVehicle.Model" /></div>
+                                    <div><label>Trim</label><InputText class="form-control" @bind-Value="quickVehicle.Trim" /></div>
+                                    <div><label>Licence Plate</label><InputText class="form-control" @bind-Value="quickVehicle.LicensePlate" /></div>
+                                    <div><label>Colour</label><InputText class="form-control" @bind-Value="quickVehicle.Color" /></div>
+                                    <div><label>Current Mileage</label><InputNumber class="form-control" @bind-Value="quickVehicle.CurrentMileage" /></div>
+                                    <div class="full"><label>Notes</label><InputTextArea class="form-control notes" @bind-Value="quickVehicle.Notes" /></div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="button" class="btn" disabled="@savingQuickVehicle" @onclick="SaveQuickVehicle">@(savingQuickVehicle ? "Saving..." : "Save Vehicle")</button>
+                                    <button type="button" class="btn secondary" disabled="@savingQuickVehicle" @onclick="CancelQuickVehicle">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    }
 
                     <div>
                         <label>
@@ -341,8 +382,9 @@
                 <div>
                     <label>Technician</label>
 
-                    <InputText class="form-control"
-                               @bind-Value="labor.TechnicianName" />
+                    <input class="form-control"
+                           value="@LaborTechnicianDisplayName"
+                           readonly />
                 </div>
 
                 <div>
@@ -399,7 +441,7 @@
                                 Cancel Edit
                             </button>
                         }
-            </div>
+                    </div>
 
                     <div class="table-wrap labor-table">
 
@@ -418,7 +460,7 @@
 
                             <tbody>
 
-                        @if (loadingDetail)
+                                @if (loadingDetail)
                                 {
                                     <tr>
                                         <td colspan="7"
@@ -449,12 +491,12 @@
                                             <td>
                                                 @(string.IsNullOrWhiteSpace(
                                                                                 line.TechnicianName)
-                                                                                ? "—"
+                                                                                ? "â€”"
                                                                                 : line.TechnicianName)
                             </td>
 
                                             <td>
-                                                @(string.IsNullOrWhiteSpace(line.TechnicianNotes) ? "—" : line.TechnicianNotes)
+                                                @(string.IsNullOrWhiteSpace(line.TechnicianNotes) ? "â€”" : line.TechnicianNotes)
                                             </td>
 
                                             <td>
@@ -510,7 +552,10 @@
                         <div class="alert error">@partError</div>
                     }
                     <div class="part-catalog-picker">
-                        <label>Use Previous Part</label>
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                            <label>Use Previous Part</label>
+                            <button type="button" class="btn small secondary" @onclick="OpenQuickPart">+ Add Catalog Part</button>
+                        </div>
                         <select class="form-control" value="@selectedCatalogId" @onchange="SelectCatalogPart">
                             <option value="0">Enter a new part manually</option>
                             @foreach (var saved in partCatalog)
@@ -520,6 +565,40 @@
                         </select>
                         <small>Selecting a previous part fills supplier, description, cost and selling price. You can still change any value before saving.</small>
                     </div>
+
+                    @if (showQuickPart)
+                    {
+                        <div class="edit-panel quick-create-panel" style="margin-top:12px;">
+                            <div class="form-header">
+                                <div><h3>Add Catalog Part</h3><p>Creating a new reusable catalog part for this Repair Order.</p></div>
+                                <button type="button" class="icon-button" title="Close" @onclick="CancelQuickPart">×</button>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(quickPartError))
+                            {
+                                <div class="alert error">@quickPartError</div>
+                            }
+                            <div class="form-grid">
+                                <div><label>Part Number</label><InputText class="form-control" @bind-Value="quickPart.PartNumber" /></div>
+                                <div class="full"><label>Description <span class="required">*</span></label><InputText class="form-control" @bind-Value="quickPart.Description" /></div>
+                                <div>
+                                    <label>Preferred Supplier</label>
+                                    <InputSelect TValue="int?" class="form-control" @bind-Value="quickPart.PreferredSupplierId">
+                                        <option value="">No preferred supplier</option>
+                                        @foreach (var supplier in suppliers.Where(x => x.IsActive).OrderBy(x => x.Name))
+                                        {
+                                            <option value="@supplier.Id">@supplier.Name</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+                                <div><label>Default Unit Cost</label><InputNumber class="form-control" @bind-Value="quickPart.DefaultUnitCost" /></div>
+                                <div><label>Default Unit Price</label><InputNumber class="form-control" @bind-Value="quickPart.DefaultUnitPrice" /></div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn" disabled="@savingQuickPart" @onclick="SaveQuickPart">@(savingQuickPart ? "Saving..." : "Create Part")</button>
+                                <button type="button" class="btn secondary" disabled="@savingQuickPart" @onclick="CancelQuickPart">Cancel</button>
+                            </div>
+                        </div>
+                    }
                     <div class="part-entry-grid">
                         <div>
                             <label>Supplier</label><InputSelect class="form-control" @bind-Value="part.SupplierId">
@@ -777,7 +856,7 @@
                                 </strong>
                             </td>
 
-                            
+
 
                         </tr>
                     }
@@ -872,6 +951,38 @@
     </div>
 </div>
 
+
+<style>
+    .quick-create-panel {
+        margin-top: 12px;
+        padding: 20px;
+        border: 2px solid #2b8a83;
+        border-radius: 12px;
+        background: #f7fbfa;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+        .quick-create-panel .form-header {
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #cfe3e0;
+        }
+
+            .quick-create-panel .form-header h3 {
+                margin-bottom: 4px;
+            }
+
+            .quick-create-panel .form-header p {
+                margin-bottom: 0;
+            }
+
+    @@media (max-width: 700px) {
+        .quick-create-panel {
+            padding: 14px;
+        }
+    }
+</style>
+
 @code
 {
     private readonly string[] statuses =
@@ -909,6 +1020,11 @@
 
     private PartSaveRequest part =
         NewPartModel();
+
+    private CustomerDto quickCustomer = NewQuickCustomerModel();
+    private VehicleDto quickVehicle = NewQuickVehicleModel();
+    private PartDto quickPart = NewQuickPartModel();
+
     private PaymentSaveRequest payment =
         NewPaymentModel();
 
@@ -921,6 +1037,13 @@
     private bool savingPart;
     private bool savingPayment;
 
+    private bool showQuickCustomer;
+    private bool savingQuickCustomer;
+    private bool showQuickVehicle;
+    private bool savingQuickVehicle;
+    private bool showQuickPart;
+    private bool savingQuickPart;
+
     private string? message;
     private string? error;
 
@@ -930,6 +1053,24 @@
     private string? partError;
     private string? paymentMessage;
     private string? paymentError;
+    private string? quickCustomerError;
+    private string? quickVehicleError;
+    private string? quickPartError;
+
+    private string SelectedCustomerName =>
+        customers.FirstOrDefault(x => x.Id == edit.CustomerId)?.Name ?? "Selected customer";
+
+    private string AssignedTechnicianName =>
+        edit.AssignedTechnicianUserId.HasValue
+            ? technicians.FirstOrDefault(x => x.Id == edit.AssignedTechnicianUserId.Value)?.Name
+                ?? edit.AssignedTechnicianName
+                ?? ""
+            : "";
+
+    private string LaborTechnicianDisplayName =>
+        editingLaborId.HasValue
+            ? (labor.TechnicianName ?? "")
+            : AssignedTechnicianName;
 
     private decimal LaborPreviewTotal => labor.Hours * labor.HourlyRate;
     private decimal PartPreviewTotal => part.Quantity * part.UnitPrice;
@@ -1181,7 +1322,7 @@
             }
 
             ApplyTotals(detail);
-            
+
         }
         catch (Exception ex)
         {
@@ -1266,7 +1407,9 @@
 
                     TechnicianName =
                         Clean(
-                            labor.TechnicianName),
+                            editingLaborId.HasValue
+                                ? labor.TechnicianName
+                                : AssignedTechnicianName),
 
                     TechnicianNotes =
                         Clean(
@@ -1591,6 +1734,208 @@
         }
     }
 
+
+    private void OpenQuickCustomer()
+    {
+        quickCustomer = NewQuickCustomerModel();
+        quickCustomerError = null;
+        showQuickCustomer = true;
+        showQuickVehicle = false;
+    }
+
+    private void CancelQuickCustomer()
+    {
+        quickCustomer = NewQuickCustomerModel();
+        quickCustomerError = null;
+        showQuickCustomer = false;
+    }
+
+    private async Task SaveQuickCustomer()
+    {
+        quickCustomerError = null;
+        if (string.IsNullOrWhiteSpace(quickCustomer.Name))
+        {
+            quickCustomerError = "Customer name is required.";
+            return;
+        }
+
+        savingQuickCustomer = true;
+        try
+        {
+            var request = new
+            {
+                Name = quickCustomer.Name.Trim(),
+                Phone = Clean(quickCustomer.Phone),
+                Email = Clean(quickCustomer.Email),
+                Address = Clean(quickCustomer.Address),
+                City = Clean(quickCustomer.City),
+                ProvinceState = Clean(quickCustomer.ProvinceState),
+                PostalCode = Clean(quickCustomer.PostalCode),
+                Notes = Clean(quickCustomer.Notes),
+                IsActive = true
+            };
+
+            var created = await Api.Post<object, CustomerDto>("api/Customers", request);
+            if (created is null || created.Id <= 0) { quickCustomerError = "The customer could not be created."; return; }
+
+            customers = await Api.Get<List<CustomerDto>>("api/Customers") ?? [];
+            edit.CustomerId = created.Id;
+            edit.VehicleId = 0;
+            edit.MileageIn = null;
+            quickCustomer = NewQuickCustomerModel();
+            showQuickCustomer = false;
+            message = $"{created.Name} was created and selected.";
+        }
+        catch (Exception ex) { quickCustomerError = "The customer could not be created. " + ex.Message; }
+        finally { savingQuickCustomer = false; }
+    }
+
+    private void OpenQuickVehicle()
+    {
+        quickVehicleError = null;
+        if (edit.CustomerId <= 0) { quickVehicleError = "Please select a customer first."; return; }
+        quickVehicle = NewQuickVehicleModel();
+        quickVehicle.CustomerId = edit.CustomerId;
+        showQuickVehicle = true;
+        showQuickCustomer = false;
+    }
+
+    private void CancelQuickVehicle()
+    {
+        quickVehicle = NewQuickVehicleModel();
+        quickVehicleError = null;
+        showQuickVehicle = false;
+    }
+
+    private async Task SaveQuickVehicle()
+    {
+        quickVehicleError = null;
+        if (edit.CustomerId <= 0) { quickVehicleError = "Please select a customer first."; return; }
+        quickVehicle.CustomerId = edit.CustomerId;
+
+        if (quickVehicle.Year.HasValue)
+        {
+            var maximumYear = DateTime.Now.Year + 1;
+            if (quickVehicle.Year.Value < 1886 || quickVehicle.Year.Value > maximumYear)
+            {
+                quickVehicleError = $"Vehicle year must be between 1886 and {maximumYear}.";
+                return;
+            }
+        }
+        if (quickVehicle.CurrentMileage.HasValue && quickVehicle.CurrentMileage.Value < 0)
+        {
+            quickVehicleError = "Mileage cannot be negative.";
+            return;
+        }
+
+        var vin = Clean(quickVehicle.Vin)?.ToUpperInvariant();
+        if (!string.IsNullOrWhiteSpace(vin))
+        {
+            if (vin.Length != 17) { quickVehicleError = "VIN must contain exactly 17 characters."; return; }
+            if (vin.Contains('I') || vin.Contains('O') || vin.Contains('Q'))
+            {
+                quickVehicleError = "VIN cannot contain the letters I, O or Q.";
+                return;
+            }
+        }
+
+        savingQuickVehicle = true;
+        try
+        {
+            var request = new
+            {
+                CustomerId = edit.CustomerId,
+                Vin = vin,
+                quickVehicle.Year,
+                Make = Clean(quickVehicle.Make),
+                Model = Clean(quickVehicle.Model),
+                Trim = Clean(quickVehicle.Trim),
+                LicensePlate = Clean(quickVehicle.LicensePlate),
+                Color = Clean(quickVehicle.Color),
+                quickVehicle.CurrentMileage,
+                Notes = Clean(quickVehicle.Notes),
+                IsActive = true
+            };
+
+            var created = await Api.Post<object, VehicleDto>("api/Vehicles", request);
+            if (created is null || created.Id <= 0) { quickVehicleError = "The vehicle could not be created."; return; }
+
+            vehicles = await Api.Get<List<VehicleDto>>("api/Vehicles") ?? [];
+            edit.VehicleId = created.Id;
+            edit.MileageIn = created.CurrentMileage;
+            quickVehicle = NewQuickVehicleModel();
+            showQuickVehicle = false;
+            message = "Vehicle created and selected.";
+        }
+        catch (Exception ex) { quickVehicleError = "The vehicle could not be created. " + ex.Message; }
+        finally { savingQuickVehicle = false; }
+    }
+
+    private void OpenQuickPart()
+    {
+        quickPart = NewQuickPartModel();
+        quickPartError = null;
+        showQuickPart = true;
+    }
+
+    private void CancelQuickPart()
+    {
+        quickPart = NewQuickPartModel();
+        quickPartError = null;
+        showQuickPart = false;
+    }
+
+    private async Task SaveQuickPart()
+    {
+        quickPartError = null;
+        if (string.IsNullOrWhiteSpace(quickPart.Description)) { quickPartError = "Part description is required."; return; }
+        if (quickPart.DefaultUnitCost < 0 || quickPart.DefaultUnitPrice < 0)
+        {
+            quickPartError = "Part cost and price cannot be negative.";
+            return;
+        }
+
+        savingQuickPart = true;
+        try
+        {
+            var request = new PartCatalogSaveRequest
+            {
+                PartNumber = Clean(quickPart.PartNumber),
+                Description = quickPart.Description.Trim(),
+                PreferredSupplierId = quickPart.PreferredSupplierId,
+                DefaultUnitCost = quickPart.DefaultUnitCost,
+                DefaultUnitPrice = quickPart.DefaultUnitPrice,
+                IsActive = true
+            };
+
+            var created = await Api.Post<PartCatalogSaveRequest, PartCreateResponse>("api/Parts", request);
+            if (created is null || created.Id <= 0) { quickPartError = "The part could not be created."; return; }
+
+            partCatalog = await Api.Get<List<PartCatalogDto>>("api/RepairOrders/parts/catalog") ?? [];
+            var saved = partCatalog.FirstOrDefault(x => x.Id == created.Id);
+            if (saved is null)
+            {
+                quickPartError = "The part was created, but it could not be loaded into the repair order.";
+                return;
+            }
+
+            selectedCatalogId = saved.Id;
+            part.PartId = saved.Id;
+            part.SupplierId = saved.SupplierId;
+            part.PartNumber = saved.PartNumber;
+            part.Description = saved.Description;
+            part.UnitCost = saved.UnitCost;
+            part.UnitPrice = saved.UnitPrice;
+            if (part.Quantity <= 0) part.Quantity = 1m;
+
+            quickPart = NewQuickPartModel();
+            showQuickPart = false;
+            partMessage = "Catalog part created and selected.";
+        }
+        catch (Exception ex) { quickPartError = "The part could not be created. " + ex.Message; }
+        finally { savingQuickPart = false; }
+    }
+
     private async Task RefreshRepairOrderList()
     {
         var refreshed =
@@ -1641,6 +1986,8 @@
         edit.CustomerId = customerId;
         edit.VehicleId = 0;
         edit.MileageIn = null;
+        showQuickVehicle = false;
+        quickVehicleError = null;
 
         var firstVehicle =
             vehicles
@@ -1876,6 +2223,15 @@
     }
 
     private static PartSaveRequest NewPartModel() => new() { Quantity = 1m };
+    private static CustomerDto NewQuickCustomerModel() => new() { Name = "", IsActive = true };
+    private static VehicleDto NewQuickVehicleModel() => new() { IsActive = true };
+    private static PartDto NewQuickPartModel() => new() { Description = "", IsActive = true };
+
+    private sealed class PartCreateResponse
+    {
+        public int Id { get; set; }
+    }
+
     private static PaymentSaveRequest NewPaymentModel()
     {
         return new PaymentSaveRequest
@@ -1888,7 +2244,7 @@
         };
     }
 
-    private static string DisplayValue(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    private static string DisplayValue(string? value) => string.IsNullOrWhiteSpace(value) ? "â€”" : value;
 
     private static RepairOrderDto
         NewRepairOrderModel()
