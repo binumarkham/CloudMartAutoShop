@@ -1,0 +1,57 @@
+﻿.login-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.login-logo {
+    display: block;
+    width: 120px;
+    max-width: 40%;
+    height: auto;
+}
+
+.cloudmart-tagline {
+    margin: 4px 0 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 0.86rem;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    color: #52677c;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(5px);
+    animation: cloudmart-tagline-in 0.7s ease-out 0.15s forwards;
+}
+
+@keyframes cloudmart-tagline-in {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cloudmart-tagline {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+}
+.login {
+    transform: translateY(-45px);
+}
+
+.login-title {
+    margin: 0 0 22px;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: #173a5e;
+}
+
+@media (max-width: 768px) {
+    .login {
+        transform: translateY(-20px);
+    }
+}

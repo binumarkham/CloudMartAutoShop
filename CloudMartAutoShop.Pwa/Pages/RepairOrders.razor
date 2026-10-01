@@ -56,7 +56,7 @@
                         class="icon-button"
                         title="Close"
                         @onclick="CancelEdit">
-                    Ã—
+                    ×
                 </button>
             </div>
 
@@ -491,12 +491,12 @@
                                             <td>
                                                 @(string.IsNullOrWhiteSpace(
                                                                                 line.TechnicianName)
-                                                                                ? "â€”"
+                                                                                ? "—"
                                                                                 : line.TechnicianName)
                             </td>
 
                                             <td>
-                                                @(string.IsNullOrWhiteSpace(line.TechnicianNotes) ? "â€”" : line.TechnicianNotes)
+                                                @(string.IsNullOrWhiteSpace(line.TechnicianNotes) ? "—" : line.TechnicianNotes)
                                             </td>
 
                                             <td>
@@ -2244,7 +2244,7 @@
         };
     }
 
-    private static string DisplayValue(string? value) => string.IsNullOrWhiteSpace(value) ? "â€”" : value;
+    private static string DisplayValue(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
 
     private static RepairOrderDto
         NewRepairOrderModel()
