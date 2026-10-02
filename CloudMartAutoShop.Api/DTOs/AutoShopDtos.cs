@@ -39,13 +39,13 @@ public class VehicleSaveRequest
     [MaxLength(17)]
     public string? Vin { get; set; }
 
-    [Range(1886, 2100)]
+    [Required, Range(1886, 2100)]
     public int? Year { get; set; }
 
-    [MaxLength(100)]
+    [Required, MaxLength(100)]
     public string? Make { get; set; }
 
-    [MaxLength(100)]
+    [Required, MaxLength(100)]
     public string? Model { get; set; }
 
     [MaxLength(100)]
@@ -106,9 +106,8 @@ public class RepairOrderSaveRequest
     [Required]
     public int VehicleId { get; set; }
 
-    [Required]
     [MaxLength(50)]
-    public string RepairOrderNumber { get; set; } = "";
+    public string? RepairOrderNumber { get; set; }
 
     [MaxLength(50)]
     public string? InvoiceNumber { get; set; }

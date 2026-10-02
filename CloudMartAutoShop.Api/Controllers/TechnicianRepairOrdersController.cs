@@ -122,37 +122,75 @@ public class TechnicianRepairOrdersController(AppDbContext db) : TenantControlle
     {
         if (string.IsNullOrWhiteSpace(request.Description))
             return BadRequest("Labor description is required.");
+
         if (request.Hours <= 0)
             return BadRequest("Labor hours must be greater than zero.");
 
         var ro = await db.RepairOrders
             .Include(x => x.LaborLines)
-            .SingleOrDefaultAsync(x => x.Id == id && x.BusinessId == BusinessId && x.AssignedTechnicianUserId == UserId);
+            .SingleOrDefaultAsync(x =>
+                x.Id == id &&
+                x.BusinessId == BusinessId &&
+                x.AssignedTechnicianUserId == UserId);
 
-        if (ro is null) return NotFound();
+        if (ro is null)
+            return NotFound();
 
-        // Technicians never control or receive billing rates. A service advisor/admin can
-        // set billing rates in the management workflow. Technician-created time starts at $0.
+        // Get the logged-in technician's current internal hourly labor rate.
+        // The technician never receives or controls this value in the PWA.
+        // The current rate is copied to the labor line so historical labor
+        // remains unchanged if the technician's profile rate changes later.
+        var technician = await db.Users
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x =>
+                x.Id == UserId &&
+                x.BusinessId == BusinessId &&
+                x.IsActive &&
+                x.Role == "Technician");
+
+        if (technician is null)
+            return BadRequest("The technician account is not available.");
+
+        if (!technician.HourlyRate.HasValue ||
+            technician.HourlyRate.Value <= 0)
+        {
+            return BadRequest(
+                "The technician does not have a valid hourly labor rate.");
+        }
+
+        var hourlyRate = technician.HourlyRate.Value;
+
         ro.LaborLines.Add(new RepairOrderLabor
         {
             BusinessId = BusinessId,
             Description = request.Description.Trim(),
-            TechnicianName = UserName,
+            TechnicianName = technician.Name,
             TechnicianNotes = Clean(request.TechnicianNotes),
             Hours = request.Hours,
-            HourlyRate = 0m,
-            LineTotal = 0m,
+
+            // Snapshot the technician's current rate.
+            HourlyRate = hourlyRate,
+
+            LineTotal = request.Hours * hourlyRate,
+
             CreatedByUserId = UserId,
             CreatedByName = UserName,
             CreatedAt = DateTime.UtcNow
         });
 
-        ro.LaborSubtotal = ro.LaborLines.Sum(x => x.LineTotal);
-        ro.Subtotal = ro.LaborSubtotal + ro.PartsSubtotal;
-        ro.TotalAmount = ro.Subtotal + ro.TaxAmount;
+        ro.LaborSubtotal =
+            ro.LaborLines.Sum(x => x.LineTotal);
+
+        ro.Subtotal =
+            ro.LaborSubtotal + ro.PartsSubtotal;
+
+        ro.TotalAmount =
+            ro.Subtotal + ro.TaxAmount;
+
         ro.UpdatedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync();
+
         return NoContent();
     }
 

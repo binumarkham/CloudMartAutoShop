@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<RepairOrder> RepairOrders => Set<RepairOrder>();
+    public DbSet<RepairOrderSequence> RepairOrderSequences => Set<RepairOrderSequence>();
     public DbSet<RepairOrderLabor> RepairOrderLabors => Set<RepairOrderLabor>();
     public DbSet<RepairOrderPart> RepairOrderParts => Set<RepairOrderPart>();
     public DbSet<Payment> Payments => Set<Payment>();
@@ -32,6 +33,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
         modelBuilder.Entity<User>()
             .HasIndex(x => new { x.BusinessId, x.Email })
             .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .Property(x => x.HourlyRate)
+            .HasPrecision(18, 2);
 
         modelBuilder.Entity<User>()
             .HasOne(x => x.Business)
@@ -64,6 +69,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
         modelBuilder.Entity<Vehicle>()
             .HasIndex(x => new { x.BusinessId, x.Vin });
+
+        // Repair Order numbering (one atomic counter per business)
+        modelBuilder.Entity<RepairOrderSequence>()
+            .HasKey(x => x.BusinessId);
 
         // Repair Order
         modelBuilder.Entity<RepairOrder>()

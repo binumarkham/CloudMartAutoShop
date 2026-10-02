@@ -170,7 +170,7 @@
 
                 @(saving
                                 ? "Saving..."
-                                : "Save Work Update")
+                                : "Save Repair Update")
 
             </button>
         </div>
@@ -322,6 +322,30 @@
 
     </div>
 }
+
+
+<style>
+    /* Match the Repair Order success confirmation styling. */
+    .alert.success {
+        margin: 12px 0;
+        padding: 12px 14px;
+        border: 1px solid #86c99a;
+        border-left: 5px solid #198754;
+        border-radius: 8px;
+        background: #eaf7ee;
+        color: #145c32;
+        font-weight: 700;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
+        .alert.success::before {
+            content: "\2713";
+            display: inline-block;
+            margin-right: 8px;
+            font-weight: 800;
+        }
+</style>
 
 @code {
 
@@ -644,7 +668,7 @@
     {
         return new LaborSaveRequest
         {
-            Hours = 1m
+            Hours = 0m
         };
     }
 

@@ -1,23 +1,45 @@
 @page "/repair-orders"
 @inject ApiService Api
+@inject IJSRuntime JS
 
 <h1>Repair Orders</h1>
 <p class="subtitle">Track work from intake through payment</p>
 
+@if (showForm)
+{
+    <NavigationLock OnBeforeInternalNavigation="ConfirmInternalNavigation"
+                    ConfirmExternalNavigation="@HasUnsavedChanges" />
+}
+
 <div class="panel">
 
-    <div class="toolbar">
-        <div>
-            <strong>Repair Order List</strong>
-            <span class="list-count">@items.Count repair order(s)</span>
+    @if (!showForm)
+    {
+        <div class="toolbar">
+            <div>
+                <strong>Repair Order List</strong>
+                <span class="list-count">@(totalCount == 0 ? "0 repair orders" : $"Showing {FirstVisibleItem}–{LastVisibleItem} of {totalCount} repair order(s)")</span>
+            </div>
+
+            <button type="button"
+                    class="btn"
+                    @onclick="NewRepairOrder">
+                + New Repair Order
+            </button>
         </div>
 
-        <button type="button"
-                class="btn"
-                @onclick="NewRepairOrder">
-            + New Repair Order
-        </button>
-    </div>
+        <div class="ro-search-row">
+            <input class="form-control ro-search-input"
+                   value="@searchText"
+                   @oninput="SearchInputChanged"
+                   placeholder="Search RO number, customer, vehicle, VIN, plate, invoice, status..."
+                   aria-label="Search repair orders" />
+            @if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                <button type="button" class="btn secondary ro-search-clear" @onclick="ClearSearch">Clear</button>
+            }
+        </div>
+    }
 
     @if (!string.IsNullOrWhiteSpace(message))
     {
@@ -68,31 +90,53 @@
                     <div>
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
                             <label>Customer <span class="required">*</span></label>
-                            <button type="button" class="btn small secondary" @onclick="OpenQuickCustomer">+ Add Customer</button>
-                        </div>
-                        <InputSelect TValue="int" class="form-control" Value="@edit.CustomerId"
-                                     ValueChanged="@((int value) => CustomerChanged(value))"
-                                     ValueExpression="@(() => edit.CustomerId)">
-                            <option value="0">Select customer</option>
-                        @foreach (var customer in SelectableCustomers())
+                        @if (edit.Id == 0)
                             {
-                                <option value="@customer.Id">@customer.Name @(!customer.IsActive ? " (Inactive)" : "")</option>
+                                <button type="button" class="btn small secondary" @onclick="OpenQuickCustomer">+ Add Customer</button>
                             }
-                        </InputSelect>
+                        </div>
+                        @if (edit.Id == 0)
+                        {
+                            <InputSelect TValue="int" class="form-control" Value="@edit.CustomerId"
+                                         ValueChanged="@((int value) => CustomerChanged(value))"
+                                         ValueExpression="@(() => edit.CustomerId)">
+                                <option value="0">Select customer</option>
+                                @foreach (var customer in SelectableCustomers())
+                                {
+                                    <option value="@customer.Id">@customer.Name @(!customer.IsActive ? " (Inactive)" : "")</option>
+                                }
+                            </InputSelect>
+                        }
+                        else
+                        {
+                            <div class="calculated-value">@SelectedCustomerName</div>
+                            <small class="field-hint">Customer is fixed after the repair order is created.</small>
+                        }
                     </div>
 
                     <div>
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
                             <label>Vehicle <span class="required">*</span></label>
-                            <button type="button" class="btn small secondary" disabled="@(edit.CustomerId <= 0)" @onclick="OpenQuickVehicle">+ Add Vehicle</button>
-                        </div>
-                        <InputSelect class="form-control" @bind-Value="edit.VehicleId">
-                            <option value="0">Select vehicle</option>
-                            @foreach (var vehicle in SelectableVehicles())
+                            @if (edit.Id == 0)
                             {
-                                <option value="@vehicle.Id">@VehicleOption(vehicle) @(!vehicle.IsActive ? " (Inactive)" : "")</option>
+                                <button type="button" class="btn small secondary" disabled="@(edit.CustomerId <= 0)" @onclick="OpenQuickVehicle">+ Add Vehicle</button>
                             }
-                        </InputSelect>
+                        </div>
+                        @if (edit.Id == 0)
+                        {
+                            <InputSelect class="form-control" @bind-Value="edit.VehicleId">
+                                <option value="0">Select vehicle</option>
+                                @foreach (var vehicle in SelectableVehicles())
+                                {
+                                    <option value="@vehicle.Id">@VehicleOption(vehicle) @(!vehicle.IsActive ? " (Inactive)" : "")</option>
+                                }
+                            </InputSelect>
+                        }
+                        else
+                        {
+                            <div class="calculated-value">@DisplayValue(edit.Vehicle)</div>
+                            <small class="field-hint">Vehicle is fixed after the repair order is created.</small>
+                        }
                     </div>
 
                     @if (showQuickCustomer)
@@ -108,13 +152,13 @@
                                     <div class="alert error">@quickCustomerError</div>
                                 }
                                 <div class="form-grid">
-                                    <div><label>Name <span class="required">*</span></label><InputText class="form-control" @bind-Value="quickCustomer.Name" /></div>
-                                    <div><label>Phone</label><InputText class="form-control" @bind-Value="quickCustomer.Phone" /></div>
-                                    <div><label>Email</label><InputText class="form-control" @bind-Value="quickCustomer.Email" /></div>
+                                    <div><label>Name <span class="required">*</span></label><InputText class="form-control" @bind-Value="quickCustomer.Name" /><small class="field-hint">Required. Customer or company name.</small></div>
+                                    <div><label>Phone</label><InputText class="form-control" @bind-Value="quickCustomer.Phone" /><small class="field-hint">Optional. Example: 416-555-1234</small></div>
+                                    <div><label>Email</label><InputText class="form-control" @bind-Value="quickCustomer.Email" /><small class="field-hint">Optional. Enter a valid email address.</small></div>
                                     <div class="full"><label>Address</label><InputText class="form-control" @bind-Value="quickCustomer.Address" /></div>
                                     <div><label>City</label><InputText class="form-control" @bind-Value="quickCustomer.City" /></div>
                                     <div><label>Province / State</label><InputText class="form-control" @bind-Value="quickCustomer.ProvinceState" /></div>
-                                    <div><label>Postal / ZIP Code</label><InputText class="form-control" @bind-Value="quickCustomer.PostalCode" /></div>
+                                    <div><label>Postal / ZIP Code</label><InputText class="form-control" @bind-Value="quickCustomer.PostalCode" /><small class="field-hint">Optional. Example: L3R 0B8</small></div>
                                     <div class="full"><label>Notes</label><InputTextArea class="form-control notes" @bind-Value="quickCustomer.Notes" /></div>
                                 </div>
                                 <div class="form-actions">
@@ -139,14 +183,14 @@
                                 }
                                 <div class="form-grid">
                                     <div><label>Customer</label><div class="calculated-value">@SelectedCustomerName</div></div>
-                                    <div><label>VIN</label><InputText class="form-control" maxlength="17" @bind-Value="quickVehicle.Vin" /></div>
-                                    <div><label>Year</label><InputNumber class="form-control" @bind-Value="quickVehicle.Year" /></div>
-                                    <div><label>Make</label><InputText class="form-control" @bind-Value="quickVehicle.Make" /></div>
-                                    <div><label>Model</label><InputText class="form-control" @bind-Value="quickVehicle.Model" /></div>
+                                    <div><label>VIN</label><InputText class="form-control" maxlength="17" @bind-Value="quickVehicle.Vin" /><small class="field-hint">Optional. Exactly 17 letters/numbers; I, O and Q are not used. Example: 2T3BFREV8GW456789</small></div>
+                                    <div><label>Year <span class="required">*</span></label><InputNumber class="form-control" @bind-Value="quickVehicle.Year" /><small class="field-hint">Required. Example: 2024</small></div>
+                                    <div><label>Make <span class="required">*</span></label><InputText class="form-control" @bind-Value="quickVehicle.Make" /><small class="field-hint">Required. Example: Toyota</small></div>
+                                    <div><label>Model <span class="required">*</span></label><InputText class="form-control" @bind-Value="quickVehicle.Model" /><small class="field-hint">Required. Example: RAV4</small></div>
                                     <div><label>Trim</label><InputText class="form-control" @bind-Value="quickVehicle.Trim" /></div>
                                     <div><label>Licence Plate</label><InputText class="form-control" @bind-Value="quickVehicle.LicensePlate" /></div>
                                     <div><label>Colour</label><InputText class="form-control" @bind-Value="quickVehicle.Color" /></div>
-                                    <div><label>Current Mileage</label><InputNumber class="form-control" @bind-Value="quickVehicle.CurrentMileage" /></div>
+                                    <div><label>Current Mileage</label><InputNumber class="form-control" @bind-Value="quickVehicle.CurrentMileage" /><small class="field-hint">Optional. Whole number, zero or greater.</small></div>
                                     <div class="full"><label>Notes</label><InputTextArea class="form-control notes" @bind-Value="quickVehicle.Notes" /></div>
                                 </div>
                                 <div class="form-actions">
@@ -157,14 +201,17 @@
                         </div>
                     }
 
-                    <div>
-                        <label>
-                            Repair Order Number
-                            <span class="required">*</span>
-                        </label>
-
-                        <InputText class="form-control"
-                                   @bind-Value="edit.RepairOrderNumber" />
+                <div>
+                    <label>Repair Order Number</label>
+                    <div class="calculated-value">
+                        @(edit.Id == 0
+                                                ? "Assigned automatically when saved"
+                                                : edit.RepairOrderNumber)
+                    </div>
+                    @if (edit.Id == 0)
+                        {
+                            <small class="field-hint">The next RO number is assigned safely by the database when you save.</small>
+                        }
                     </div>
 
                     <div>
@@ -342,16 +389,14 @@
 
         @if (edit.Id != 0)
             {
-                <div class="labor-section">
-
-                    <div class="section-heading">
+                <details class="labor-section ro-collapsible">
+                    <summary class="ro-section-summary">
                         <div>
                             <h3>Labor</h3>
-                            <p>
-                                Add labor performed for this repair order.
-                            </p>
+                            <p>@(detail?.LaborLines.Count ?? 0) item(s) • @edit.LaborSubtotal.ToString("C")</p>
                         </div>
-                    </div>
+                        <span class="ro-section-hint">Tap to open</span>
+                    </summary>
 
                     @if (!string.IsNullOrWhiteSpace(laborMessage))
                     {
@@ -367,41 +412,48 @@
                         </div>
                     }
 
-            <div class="labor-entry-grid">
+                    <div class="labor-entry-grid">
 
-                <div class="labor-description">
-                    <label>
-                        Description
-                        <span class="required">*</span>
-                    </label>
+                        <div class="labor-description">
+                            <label>
+                                Description
+                                <span class="required">*</span>
+                            </label>
 
-                    <InputText class="form-control"
-                               @bind-Value="labor.Description" />
-                </div>
+                            <InputText class="form-control"
+                                       @bind-Value="labor.Description" />
+                        </div>
 
-                <div>
-                    <label>Technician</label>
+                        <div>
+                            <label>Technician</label>
 
-                    <input class="form-control"
-                           value="@LaborTechnicianDisplayName"
-                           readonly />
-                </div>
+                            <input class="form-control"
+                                   value="@LaborTechnicianDisplayName"
+                                   readonly />
+                        </div>
 
-                <div>
-                    <label>
-                        Hours
-                        <span class="required">*</span>
-                    </label>
+                        <div>
+                            <label>
+                                Hours
+                                <span class="required">*</span>
+                            </label>
 
-                    <InputNumber class="form-control"
-                                 @bind-Value="labor.Hours" />
-                </div>
+                            <InputNumber class="form-control"
+                                         @bind-Value="labor.Hours" />
+                        </div>
 
-                <div>
-                    <label>Hourly Rate</label>
+                        <div>
+                            <label>Hourly Rate</label>
 
-                    <InputNumber class="form-control"
-                                 @bind-Value="labor.HourlyRate" />
+                            @if (editingLaborId.HasValue)
+                            {
+                                <InputNumber class="form-control" @bind-Value="labor.HourlyRate" />
+                            }
+                            else
+                            {
+                                <input class="form-control" value="@EffectiveLaborHourlyRate.ToString("0.00")" readonly />
+                                <small class="field-hint">Automatically copied from the assigned technician's profile.</small>
+                            }
                 </div>
 
                 <div>
@@ -539,10 +591,16 @@
 
                     </div>
 
-                </div>
+                </details>
 
-                <div class="labor-section">
-                    <div class="section-heading"><div><h3>Parts</h3><p>Add parts and materials used on this repair order.</p></div></div>
+                <details class="labor-section ro-collapsible">
+                    <summary class="ro-section-summary">
+                        <div>
+                            <h3>Parts</h3>
+                            <p>@(detail?.PartLines.Count ?? 0) item(s) • @edit.PartsSubtotal.ToString("C")</p>
+                        </div>
+                        <span class="ro-section-hint">Tap to open</span>
+                    </summary>
                     @if (!string.IsNullOrWhiteSpace(partMessage))
                     {
                         <div class="alert success">@partMessage</div>
@@ -643,15 +701,16 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </details>
 
-            <div class="labor-section">
-                <div class="section-heading">
+            <details class="labor-section ro-collapsible">
+                <summary class="ro-section-summary">
                     <div>
                         <h3>Payments</h3>
-                        <p>Record customer payments for this repair order.</p>
+                        <p>@(detail?.Payments.Count ?? 0) payment(s) • Paid @edit.AmountPaid.ToString("C") • Balance @edit.Balance.ToString("C")</p>
                     </div>
-                </div>
+                    <span class="ro-section-hint">Tap to open</span>
+                </summary>
 
                 @if (!string.IsNullOrWhiteSpace(paymentMessage))
                 {
@@ -759,56 +818,139 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </details>
         }
 
     </div>
         }
 
-    <div class="table-wrap repair-orders-table">
+    @if (!showForm)
+    {
+        <div class="table-wrap repair-orders-table">
 
-        <table>
+            <table>
 
-            <thead>
-                <tr>
-                    <th>RO Number</th>
-                    <th>Date</th>
-                    <th>Customer</th>
-                    <th>Vehicle</th>
-                    <th>Status</th>
-                    <th>Total</th>
-                    <th>Paid</th>
-                    <th>Balance</th>
-                </tr>
-            </thead>
-
-            <tbody>
-
-                @if (loading)
-                {
+                <thead>
                     <tr>
-                        <td colspan="8"
-                            class="empty-row">
-                            Loading repair orders...
-                        </td>
+                        <th>RO Number</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Vehicle</th>
+                        <th>Status</th>
+                        <th>Total</th>
+                        <th>Paid</th>
+                        <th>Balance</th>
                     </tr>
-                }
-                else if (items.Count == 0)
-                {
-                    <tr>
-                        <td colspan="8"
-                            class="empty-row">
-                            No repair orders have been created yet.
-                        </td>
-                    </tr>
-                }
-                else
-                {
-                    @foreach (var repairOrder in items)
+                </thead>
+
+                <tbody>
+
+                    @if (loading)
                     {
                         <tr>
+                            <td colspan="8"
+                                class="empty-row">
+                                Loading repair orders...
+                            </td>
+                        </tr>
+                    }
+                    else if (items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="8"
+                                class="empty-row">
+                                @(string.IsNullOrWhiteSpace(searchText) ? "No repair orders have been created yet." : "No repair orders match your search.")
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var repairOrder in items)
+                        {
+                            <tr>
 
-                            <td>
+                                <td>
+                                    <button type="button"
+                                            class="repair-order-link"
+                                            title="Open repair order"
+                                            @onclick="() => EditRepairOrder(repairOrder)">
+                                        @repairOrder.RepairOrderNumber
+                                    </button>
+
+                                    @if (!string.IsNullOrWhiteSpace(repairOrder.InvoiceNumber))
+                                    {
+                                        <small class="table-secondary">
+                                            Invoice @repairOrder.InvoiceNumber
+                                        </small>
+                                    }
+                                </td>
+
+                                <td>
+                                    @repairOrder.OpenedDate.ToString("yyyy-MM-dd")
+                                </td>
+
+                                <td>
+                                    @repairOrder.CustomerName
+                                </td>
+
+                                <td>
+                                    @repairOrder.Vehicle
+                                </td>
+
+                                <td>
+                                    <span class="badge">
+                                        @repairOrder.Status
+                                    </span>
+                                </td>
+
+                                <td>
+                                    @repairOrder.TotalAmount.ToString("C")
+                                </td>
+
+                                <td>
+                                    @repairOrder.AmountPaid.ToString("C")
+                                </td>
+
+                                <td>
+                                    <strong>
+                                        @repairOrder.Balance.ToString("C")
+                                    </strong>
+                                </td>
+
+
+
+                            </tr>
+                        }
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        <div class="repair-orders-mobile">
+
+            @if (loading)
+            {
+                <div class="mobile-ro-empty">
+                    Loading repair orders...
+                </div>
+            }
+            else if (items.Count == 0)
+            {
+                <div class="mobile-ro-empty">
+                    @(string.IsNullOrWhiteSpace(searchText) ? "No repair orders have been created yet." : "No repair orders match your search.")
+                </div>
+            }
+            else
+            {
+                @foreach (var repairOrder in items)
+                {
+                    <div class="mobile-ro-card">
+
+                        <div class="mobile-ro-header">
+                            <div>
                                 <button type="button"
                                         class="repair-order-link"
                                         title="Open repair order"
@@ -822,137 +964,87 @@
                                         Invoice @repairOrder.InvoiceNumber
                                     </small>
                                 }
-                            </td>
+                            </div>
 
-                            <td>
-                                @repairOrder.OpenedDate.ToString("yyyy-MM-dd")
-                            </td>
+                            <span class="badge">
+                                @repairOrder.Status
+                            </span>
+                        </div>
 
-                            <td>
-                                @repairOrder.CustomerName
-                            </td>
+                        <div class="mobile-ro-details">
+                            <div>
+                                <span class="mobile-ro-label">Date</span>
+                                <span>@repairOrder.OpenedDate.ToString("yyyy-MM-dd")</span>
+                            </div>
 
-                            <td>
-                                @repairOrder.Vehicle
-                            </td>
+                            <div>
+                                <span class="mobile-ro-label">Customer</span>
+                                <span>@repairOrder.CustomerName</span>
+                            </div>
 
-                            <td>
-                                <span class="badge">
-                                    @repairOrder.Status
-                                </span>
-                            </td>
+                            <div>
+                                <span class="mobile-ro-label">Vehicle</span>
+                                <span>@repairOrder.Vehicle</span>
+                            </div>
+                        </div>
 
-                            <td>
-                                @repairOrder.TotalAmount.ToString("C")
-                            </td>
+                        <div class="mobile-ro-totals">
+                            <div>
+                                <span>Total</span>
+                                <strong>@repairOrder.TotalAmount.ToString("C")</strong>
+                            </div>
 
-                            <td>
-                                @repairOrder.AmountPaid.ToString("C")
-                            </td>
+                            <div>
+                                <span>Paid</span>
+                                <strong>@repairOrder.AmountPaid.ToString("C")</strong>
+                            </div>
 
-                            <td>
-                                <strong>
-                                    @repairOrder.Balance.ToString("C")
-                                </strong>
-                            </td>
+                            <div>
+                                <span>Balance</span>
+                                <strong>@repairOrder.Balance.ToString("C")</strong>
+                            </div>
+                        </div>
 
-
-
-                        </tr>
-                    }
+                    </div>
                 }
-
-            </tbody>
-
-        </table>
-
-    </div>
-
-    <div class="repair-orders-mobile">
-
-        @if (loading)
-        {
-            <div class="mobile-ro-empty">
-                Loading repair orders...
-            </div>
-        }
-        else if (items.Count == 0)
-        {
-            <div class="mobile-ro-empty">
-                No repair orders have been created yet.
-            </div>
-        }
-        else
-        {
-            @foreach (var repairOrder in items)
-            {
-                <div class="mobile-ro-card">
-
-                    <div class="mobile-ro-header">
-                        <div>
-                            <button type="button"
-                                    class="repair-order-link"
-                                    title="Open repair order"
-                                    @onclick="() => EditRepairOrder(repairOrder)">
-                                @repairOrder.RepairOrderNumber
-                            </button>
-
-                            @if (!string.IsNullOrWhiteSpace(repairOrder.InvoiceNumber))
-                            {
-                                <small class="table-secondary">
-                                    Invoice @repairOrder.InvoiceNumber
-                                </small>
-                            }
-                        </div>
-
-                        <span class="badge">
-                            @repairOrder.Status
-                        </span>
-                    </div>
-
-                    <div class="mobile-ro-details">
-                        <div>
-                            <span class="mobile-ro-label">Date</span>
-                            <span>@repairOrder.OpenedDate.ToString("yyyy-MM-dd")</span>
-                        </div>
-
-                        <div>
-                            <span class="mobile-ro-label">Customer</span>
-                            <span>@repairOrder.CustomerName</span>
-                        </div>
-
-                        <div>
-                            <span class="mobile-ro-label">Vehicle</span>
-                            <span>@repairOrder.Vehicle</span>
-                        </div>
-                    </div>
-
-                    <div class="mobile-ro-totals">
-                        <div>
-                            <span>Total</span>
-                            <strong>@repairOrder.TotalAmount.ToString("C")</strong>
-                        </div>
-
-                        <div>
-                            <span>Paid</span>
-                            <strong>@repairOrder.AmountPaid.ToString("C")</strong>
-                        </div>
-
-                        <div>
-                            <span>Balance</span>
-                            <strong>@repairOrder.Balance.ToString("C")</strong>
-                        </div>
-                    </div>
-
-                </div>
             }
-        }
 
-    </div>
+        </div>
+
+        @if (!loading && totalCount > 0)
+        {
+            <div class="ro-pagination">
+                <button type="button" class="btn secondary" disabled="@(currentPage <= 1)" @onclick="PreviousPage">Previous</button>
+                <span class="ro-page-status">Page @currentPage of @totalPages</span>
+                <button type="button" class="btn secondary" disabled="@(currentPage >= totalPages)" @onclick="NextPage">Next</button>
+            </div>
+        }
+    }
 </div>
 
 
 <style>
+    /* Clear, high-visibility confirmation messages for long Repair Order forms. */
+    .alert.success {
+        margin: 12px 0;
+        padding: 12px 14px;
+        border: 1px solid #86c99a;
+        border-left: 5px solid #198754;
+        border-radius: 8px;
+        background: #eaf7ee;
+        color: #145c32;
+        font-weight: 700;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
+        .alert.success::before {
+            content: "\2713";
+            display: inline-block;
+            margin-right: 8px;
+            font-weight: 800;
+        }
+
     .quick-create-panel {
         margin-top: 12px;
         padding: 20px;
@@ -976,7 +1068,96 @@
                 margin-bottom: 0;
             }
 
+    .ro-collapsible {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .ro-section-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 20px;
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+    }
+
+        .ro-section-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .ro-section-summary h3 {
+            margin: 0 0 3px;
+        }
+
+        .ro-section-summary p {
+            margin: 0;
+            color: #6d7789;
+            font-size: .9rem;
+        }
+
+    .ro-section-hint {
+        white-space: nowrap;
+        font-size: .82rem;
+        font-weight: 600;
+        color: #2b6f69;
+    }
+
+    .ro-collapsible[open] > .ro-section-summary {
+        border-bottom: 1px solid #e1e7f0;
+        margin-bottom: 18px;
+    }
+
+        .ro-collapsible[open] > .ro-section-summary .ro-section-hint::after {
+            content: " · Close";
+        }
+
+    .ro-search-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin: 14px 0 18px;
+    }
+
+    .ro-search-input {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .ro-search-clear {
+        flex: 0 0 auto;
+    }
+
+    .ro-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        margin-top: 18px;
+        flex-wrap: wrap;
+    }
+
+    .ro-page-status {
+        font-weight: 600;
+        color: #5f6877;
+    }
+
     @@media (max-width: 700px) {
+        .ro-section-summary {
+            padding: 15px 14px;
+            align-items: flex-start;
+        }
+
+            .ro-section-summary p {
+                font-size: .82rem;
+            }
+
+        .ro-section-hint {
+            font-size: .76rem;
+        }
+
         .quick-create-panel {
             padding: 14px;
         }
@@ -996,6 +1177,15 @@
     ];
 
     private List<RepairOrderDto> items = [];
+    private string searchText = string.Empty;
+    private int currentPage = 1;
+    private int pageSize = 25;
+    private int totalCount;
+    private int totalPages = 1;
+    private CancellationTokenSource? searchDebounce;
+
+    private int FirstVisibleItem => totalCount == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int LastVisibleItem => Math.Min(currentPage * pageSize, totalCount);
 
     private List<CustomerDto> customers = [];
 
@@ -1057,6 +1247,8 @@
     private string? quickVehicleError;
     private string? quickPartError;
 
+    private string repairOrderSnapshot = string.Empty;
+
     private string SelectedCustomerName =>
         customers.FirstOrDefault(x => x.Id == edit.CustomerId)?.Name ?? "Selected customer";
 
@@ -1072,7 +1264,15 @@
             ? (labor.TechnicianName ?? "")
             : AssignedTechnicianName;
 
-    private decimal LaborPreviewTotal => labor.Hours * labor.HourlyRate;
+    private decimal? AssignedTechnicianHourlyRate =>
+        edit.AssignedTechnicianUserId.HasValue
+            ? technicians.FirstOrDefault(x => x.Id == edit.AssignedTechnicianUserId.Value)?.HourlyRate
+            : null;
+
+    private decimal EffectiveLaborHourlyRate =>
+        editingLaborId.HasValue ? labor.HourlyRate : AssignedTechnicianHourlyRate ?? labor.HourlyRate;
+
+    private decimal LaborPreviewTotal => labor.Hours * EffectiveLaborHourlyRate;
     private decimal PartPreviewTotal => part.Quantity * part.UnitPrice;
 
     protected override async Task OnInitializedAsync()
@@ -1087,10 +1287,7 @@
 
         try
         {
-            items =
-                await Api.Get<List<RepairOrderDto>>(
-                    "api/RepairOrders")
-                ?? [];
+            await LoadRepairOrderPage();
 
             customers =
                 await Api.Get<List<CustomerDto>>(
@@ -1148,38 +1345,12 @@
 
         edit = NewRepairOrderModel();
 
-        var firstCustomer =
-            customers
-                .Where(x => x.IsActive)
-                .OrderBy(x => x.Name)
-                .FirstOrDefault();
-
-        if (firstCustomer is not null)
-        {
-            edit.CustomerId =
-                firstCustomer.Id;
-
-            var firstVehicle =
-                vehicles
-                    .Where(x =>
-                        x.CustomerId == firstCustomer.Id &&
-                        x.IsActive)
-                    .OrderByDescending(x => x.Year)
-                    .ThenBy(x => x.Make)
-                    .ThenBy(x => x.Model)
-                    .FirstOrDefault();
-
-            if (firstVehicle is not null)
-            {
-                edit.VehicleId =
-                    firstVehicle.Id;
-
-                edit.MileageIn =
-                    firstVehicle.CurrentMileage;
-            }
-        }
+        edit.CustomerId = 0;
+        edit.VehicleId = 0;
+        edit.MileageIn = null;
 
         showForm = true;
+        CaptureRepairOrderSnapshot();
     }
 
     private async Task EditRepairOrder(
@@ -1300,6 +1471,8 @@
 
         await LoadRepairOrderDetail(
             repairOrder.Id);
+
+        CaptureRepairOrderSnapshot();
     }
 
     private async Task LoadRepairOrderDetail(
@@ -1419,7 +1592,7 @@
                         labor.Hours,
 
                     HourlyRate =
-                        labor.HourlyRate
+                        EffectiveLaborHourlyRate
                 };
 
             var success =
@@ -1813,6 +1986,10 @@
         if (edit.CustomerId <= 0) { quickVehicleError = "Please select a customer first."; return; }
         quickVehicle.CustomerId = edit.CustomerId;
 
+        if (!quickVehicle.Year.HasValue) { quickVehicleError = "Vehicle year is required."; return; }
+        if (string.IsNullOrWhiteSpace(quickVehicle.Make)) { quickVehicleError = "Vehicle make is required."; return; }
+        if (string.IsNullOrWhiteSpace(quickVehicle.Model)) { quickVehicleError = "Vehicle model is required."; return; }
+
         if (quickVehicle.Year.HasValue)
         {
             var maximumYear = DateTime.Now.Year + 1;
@@ -1938,38 +2115,105 @@
 
     private async Task RefreshRepairOrderList()
     {
-        var refreshed =
-            await Api.Get<List<RepairOrderDto>>(
-                "api/RepairOrders");
-
-        if (refreshed is not null)
-        {
-            items = refreshed;
-
-            var current =
-                items.FirstOrDefault(
-                    x => x.Id == edit.Id);
-
-            if (current is not null)
-            {
-                ApplyTotals(current);
-            }
-        }
+        await LoadRepairOrderPage();
+        var current = items.FirstOrDefault(x => x.Id == edit.Id);
+        if (current is not null) ApplyTotals(current);
     }
 
-    private void CancelEdit()
+    private async Task LoadRepairOrderPage()
     {
-        edit =
-            NewRepairOrderModel();
+        var encodedSearch = Uri.EscapeDataString(searchText.Trim());
+        var result = await Api.Get<RepairOrderPageResponse>(
+            $"api/RepairOrders/paged?search={encodedSearch}&page={currentPage}&pageSize={pageSize}");
 
+        if (result is null)
+        {
+            items = [];
+            totalCount = 0;
+            totalPages = 1;
+            currentPage = 1;
+            return;
+        }
+
+        items = result.Items ?? [];
+        totalCount = result.TotalCount;
+        currentPage = result.Page;
+        pageSize = result.PageSize;
+        totalPages = Math.Max(result.TotalPages, 1);
+    }
+
+    private async Task SearchInputChanged(ChangeEventArgs e)
+    {
+        searchText = e.Value?.ToString() ?? string.Empty;
+        currentPage = 1;
+        searchDebounce?.Cancel();
+        searchDebounce?.Dispose();
+        searchDebounce = new CancellationTokenSource();
+
+        try
+        {
+            await Task.Delay(300, searchDebounce.Token);
+            loading = true;
+            await LoadRepairOrderPage();
+        }
+        catch (OperationCanceledException) { return; }
+        finally { loading = false; }
+    }
+
+    private async Task ClearSearch()
+    {
+        searchDebounce?.Cancel();
+        searchText = string.Empty;
+        currentPage = 1;
+        loading = true;
+        try { await LoadRepairOrderPage(); }
+        finally { loading = false; }
+    }
+
+    private async Task PreviousPage()
+    {
+        if (currentPage <= 1) return;
+        currentPage--;
+        loading = true;
+        try { await LoadRepairOrderPage(); }
+        finally { loading = false; }
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage >= totalPages) return;
+        currentPage++;
+        loading = true;
+        try { await LoadRepairOrderPage(); }
+        finally { loading = false; }
+    }
+
+    private async Task CancelEdit()
+    {
+        if (HasUnsavedChanges)
+        {
+            var leave = await JS.InvokeAsync<bool>(
+                "confirm",
+                "You have unsaved changes to this repair order. Are you sure you want to leave without saving?");
+
+            if (!leave)
+            {
+                return;
+            }
+        }
+
+        CloseRepairOrderForm();
+    }
+
+    private void CloseRepairOrderForm()
+    {
+        edit = NewRepairOrderModel();
         detail = null;
-
-        labor =
-            NewLaborModel();
+        labor = NewLaborModel();
         part = NewPartModel();
         payment = NewPaymentModel();
-
         showForm = false;
+        repairOrderSnapshot = string.Empty;
 
         error = null;
         laborError = null;
@@ -1978,6 +2222,55 @@
         partMessage = null;
         paymentError = null;
         paymentMessage = null;
+    }
+
+    private bool HasUnsavedChanges =>
+        showForm &&
+        !string.Equals(
+            repairOrderSnapshot,
+            CurrentRepairOrderFingerprint(),
+            StringComparison.Ordinal);
+
+    private void CaptureRepairOrderSnapshot()
+    {
+        repairOrderSnapshot = CurrentRepairOrderFingerprint();
+    }
+
+    private string CurrentRepairOrderFingerprint()
+    {
+        return string.Join("|",
+            edit.CustomerId,
+            edit.VehicleId,
+            edit.InvoiceNumber ?? string.Empty,
+            edit.OpenedDate.ToString("O"),
+            edit.CompletedDate?.ToString("O") ?? string.Empty,
+            edit.Status ?? string.Empty,
+            edit.MileageIn?.ToString() ?? string.Empty,
+            edit.MileageOut?.ToString() ?? string.Empty,
+            edit.CustomerConcern ?? string.Empty,
+            edit.Diagnosis ?? string.Empty,
+            edit.WorkPerformed ?? string.Empty,
+            edit.AssignedTechnicianUserId?.ToString() ?? string.Empty,
+            edit.Notes ?? string.Empty,
+            edit.TaxAmount.ToString());
+    }
+
+    private async Task ConfirmInternalNavigation(
+        Microsoft.AspNetCore.Components.Routing.LocationChangingContext context)
+    {
+        if (!HasUnsavedChanges)
+        {
+            return;
+        }
+
+        var leave = await JS.InvokeAsync<bool>(
+            "confirm",
+            "You have unsaved changes to this repair order. Are you sure you want to leave without saving?");
+
+        if (!leave)
+        {
+            context.PreventNavigation();
+        }
     }
 
     private void CustomerChanged(
@@ -2054,14 +2347,6 @@
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(
-            edit.RepairOrderNumber))
-        {
-            error =
-                "Repair order number is required.";
-            return;
-        }
-
         if (edit.MileageIn.HasValue &&
             edit.MileageIn.Value < 0)
         {
@@ -2098,7 +2383,9 @@
                 edit.VehicleId,
 
                 RepairOrderNumber =
-                    edit.RepairOrderNumber.Trim(),
+                    string.IsNullOrWhiteSpace(edit.RepairOrderNumber)
+                        ? null
+                        : edit.RepairOrderNumber.Trim(),
 
                 InvoiceNumber =
                     Clean(
@@ -2174,6 +2461,8 @@
 
             if (createdRepairOrderId.HasValue)
             {
+                searchText = string.Empty;
+                currentPage = 1;
                 await Load();
 
                 var createdRepairOrder =
@@ -2227,6 +2516,15 @@
     private static VehicleDto NewQuickVehicleModel() => new() { IsActive = true };
     private static PartDto NewQuickPartModel() => new() { Description = "", IsActive = true };
 
+    private sealed class RepairOrderPageResponse
+    {
+        public List<RepairOrderDto> Items { get; set; } = [];
+        public int TotalCount { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages { get; set; }
+    }
+
     private sealed class PartCreateResponse
     {
         public int Id { get; set; }
@@ -2269,7 +2567,7 @@
         {
             Description = "",
             TechnicianName = null,
-            Hours = 1m,
+            Hours = 0m,
             HourlyRate = 0m
         };
     }

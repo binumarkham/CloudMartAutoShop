@@ -231,6 +231,21 @@ public class VehiclesController(AppDbContext db) : TenantControllerBase
                 "The selected customer is inactive.");
         }
 
+        if (!request.Year.HasValue)
+        {
+            return BadRequest("Vehicle year is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Make))
+        {
+            return BadRequest("Vehicle make is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Model))
+        {
+            return BadRequest("Vehicle model is required.");
+        }
+
         if (request.Year.HasValue)
         {
             var maximumYear =

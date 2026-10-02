@@ -17,7 +17,7 @@ public class TechniciansController(AppDbContext db) : TenantControllerBase
             .AsNoTracking()
             .Where(x => x.BusinessId == BusinessId && x.IsActive && x.Role == "Technician")
             .OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Name, x.Email })
+            .Select(x => new { x.Id, x.Name, x.Email, x.HourlyRate })
             .ToListAsync();
 
         return Ok(items);

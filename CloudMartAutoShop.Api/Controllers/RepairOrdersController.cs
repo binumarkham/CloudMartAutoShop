@@ -91,6 +91,127 @@ public class RepairOrdersController(
         return Ok(items);
     }
 
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged(
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 10, 100);
+
+        var query = db.RepairOrders
+            .AsNoTracking()
+            .Where(x => x.BusinessId == BusinessId);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            var pattern = $"%{term}%";
+
+            query = query.Where(x =>
+                EF.Functions.ILike(x.RepairOrderNumber, pattern) ||
+                (x.InvoiceNumber != null &&
+                    EF.Functions.ILike(x.InvoiceNumber, pattern)) ||
+                EF.Functions.ILike(x.Customer.Name, pattern) ||
+                (x.Customer.Phone != null &&
+                    EF.Functions.ILike(x.Customer.Phone, pattern)) ||
+                (x.Customer.Email != null &&
+                    EF.Functions.ILike(x.Customer.Email, pattern)) ||
+                (x.Vehicle.Make != null &&
+                    EF.Functions.ILike(x.Vehicle.Make, pattern)) ||
+                (x.Vehicle.Model != null &&
+                    EF.Functions.ILike(x.Vehicle.Model, pattern)) ||
+                (x.Vehicle.Vin != null &&
+                    EF.Functions.ILike(x.Vehicle.Vin, pattern)) ||
+                (x.Vehicle.LicensePlate != null &&
+                    EF.Functions.ILike(x.Vehicle.LicensePlate, pattern)) ||
+                EF.Functions.ILike(x.Status, pattern) ||
+                (x.AssignedTechnicianName != null &&
+                    EF.Functions.ILike(x.AssignedTechnicianName, pattern)) ||
+                (x.TechnicianName != null &&
+                    EF.Functions.ILike(x.TechnicianName, pattern)) ||
+                (x.CustomerConcern != null &&
+                    EF.Functions.ILike(x.CustomerConcern, pattern)) ||
+                (x.Diagnosis != null &&
+                    EF.Functions.ILike(x.Diagnosis, pattern)) ||
+                (x.WorkPerformed != null &&
+                    EF.Functions.ILike(x.WorkPerformed, pattern)) ||
+                (x.Notes != null &&
+                    EF.Functions.ILike(x.Notes, pattern)));
+        }
+
+        var totalCount = await query.CountAsync();
+        var totalPages = totalCount == 0
+            ? 1
+            : (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        if (page > totalPages)
+        {
+            page = totalPages;
+        }
+
+        var items = await query
+            .OrderByDescending(x => x.OpenedDate)
+            .ThenByDescending(x => x.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => new
+            {
+                x.Id,
+                x.CustomerId,
+                x.VehicleId,
+                x.RepairOrderNumber,
+                x.InvoiceNumber,
+                x.OpenedDate,
+                x.CompletedDate,
+                x.MileageIn,
+                x.MileageOut,
+                x.Status,
+
+                CustomerName = x.Customer.Name,
+
+                Vehicle =
+                    (x.Vehicle.Year.HasValue
+                        ? x.Vehicle.Year.Value.ToString() + " "
+                        : "") +
+                    (x.Vehicle.Make ?? "") + " " +
+                    (x.Vehicle.Model ?? ""),
+
+                x.CustomerConcern,
+                x.Diagnosis,
+                x.WorkPerformed,
+                x.TechnicianName,
+                x.AssignedTechnicianUserId,
+                x.AssignedTechnicianName,
+
+                x.LaborSubtotal,
+                x.PartsSubtotal,
+                x.Subtotal,
+                x.TaxAmount,
+                x.TotalAmount,
+                x.AmountPaid,
+
+                Balance = x.TotalAmount - x.AmountPaid,
+
+                x.Notes,
+                x.CreatedByUserId,
+                x.CreatedByName,
+                x.CreatedAt,
+                x.UpdatedAt
+            })
+            .ToListAsync();
+
+        return Ok(new
+        {
+            items,
+            totalCount,
+            page,
+            pageSize,
+            totalPages
+        });
+    }
+
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetOne(int id)
     {
@@ -223,6 +344,9 @@ public class RepairOrdersController(
             return validation;
         }
 
+        var repairOrderNumber =
+            await AllocateRepairOrderNumber();
+
         var repairOrder = new RepairOrder
         {
             BusinessId = BusinessId,
@@ -231,7 +355,7 @@ public class RepairOrdersController(
             VehicleId = request.VehicleId,
 
             RepairOrderNumber =
-                request.RepairOrderNumber.Trim(),
+                repairOrderNumber,
 
             InvoiceNumber =
                 Clean(request.InvoiceNumber),
@@ -302,7 +426,11 @@ public class RepairOrdersController(
 
         await db.SaveChangesAsync();
 
-        return Ok(new { repairOrder.Id });
+        return Ok(new
+        {
+            repairOrder.Id,
+            repairOrder.RepairOrderNumber
+        });
     }
 
     [HttpPut("{id:int}")]
@@ -344,9 +472,6 @@ public class RepairOrdersController(
 
         repairOrder.VehicleId =
             request.VehicleId;
-
-        repairOrder.RepairOrderNumber =
-            request.RepairOrderNumber.Trim();
 
         repairOrder.InvoiceNumber =
             Clean(request.InvoiceNumber);
@@ -426,7 +551,36 @@ public class RepairOrdersController(
                 "Labor hours must be greater than zero.");
         }
 
-        if (request.HourlyRate < 0)
+        var hourlyRate = request.HourlyRate;
+        var technicianName = Clean(request.TechnicianName);
+
+        // For a new labor line, snapshot the assigned technician's current
+        // internal hourly rate. Later profile changes will not alter history.
+        if (repairOrder.AssignedTechnicianUserId.HasValue)
+        {
+            var technician = await db.Users
+                .AsNoTracking()
+                .SingleOrDefaultAsync(x =>
+                    x.Id == repairOrder.AssignedTechnicianUserId.Value &&
+                    x.BusinessId == BusinessId &&
+                    x.IsActive &&
+                    x.Role == "Technician");
+
+            if (technician is null)
+            {
+                return BadRequest("The assigned technician is not available.");
+            }
+
+            if (!technician.HourlyRate.HasValue || technician.HourlyRate.Value <= 0)
+            {
+                return BadRequest("The assigned technician does not have a valid hourly labor rate.");
+            }
+
+            hourlyRate = technician.HourlyRate.Value;
+            technicianName = technician.Name;
+        }
+
+        if (hourlyRate < 0)
         {
             return BadRequest(
                 "Hourly rate cannot be negative.");
@@ -441,17 +595,17 @@ public class RepairOrdersController(
                     request.Description.Trim(),
 
                 TechnicianName =
-                    Clean(request.TechnicianName),
+                    technicianName,
 
                 TechnicianNotes =
                     Clean(request.TechnicianNotes),
 
                 Hours = request.Hours,
-                HourlyRate = request.HourlyRate,
+                HourlyRate = hourlyRate,
 
                 LineTotal =
                     request.Hours *
-                    request.HourlyRate,
+                    hourlyRate,
 
                 CreatedByUserId = UserId,
                 CreatedByName = UserName,
@@ -938,13 +1092,6 @@ public class RepairOrdersController(
                 "Please select a vehicle.");
         }
 
-        if (string.IsNullOrWhiteSpace(
-            request.RepairOrderNumber))
-        {
-            return BadRequest(
-                "Repair order number is required.");
-        }
-
         if (!Statuses.Contains(
             request.Status))
         {
@@ -1041,26 +1188,61 @@ public class RepairOrdersController(
             }
         }
 
-        var repairOrderNumber =
-            request.RepairOrderNumber.Trim();
+        return null;
+    }
 
-        var duplicateNumber =
-            await db.RepairOrders
-                .AsNoTracking()
-                .AnyAsync(x =>
-                    x.BusinessId == BusinessId &&
-                    (!excludeRepairOrderId.HasValue ||
-                     x.Id != excludeRepairOrderId.Value) &&
-                    x.RepairOrderNumber ==
-                        repairOrderNumber);
+    private async Task<int> AllocateRepairOrderSequenceNumber()
+    {
+        var connection = db.Database.GetDbConnection();
+        var shouldClose = connection.State != System.Data.ConnectionState.Open;
 
-        if (duplicateNumber)
+        if (shouldClose)
         {
-            return BadRequest(
-                "Repair order number already exists.");
+            await connection.OpenAsync();
         }
 
-        return null;
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+INSERT INTO "RepairOrderSequences" ("BusinessId", "LastNumber")
+VALUES (
+    @businessId,
+    COALESCE((
+        SELECT MAX(
+            SUBSTRING("RepairOrderNumber" FROM 4)::integer
+        )
+        FROM "RepairOrders"
+        WHERE "BusinessId" = @businessId
+          AND "RepairOrderNumber" ~ '^RO-[0-9]+$'
+    ), 0) + 1
+)
+ON CONFLICT ("BusinessId")
+DO UPDATE SET "LastNumber" = "RepairOrderSequences"."LastNumber" + 1
+RETURNING "LastNumber";
+""";
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "businessId";
+            parameter.Value = BusinessId;
+            command.Parameters.Add(parameter);
+
+            var result = await command.ExecuteScalarAsync();
+            return Convert.ToInt32(result);
+        }
+        finally
+        {
+            if (shouldClose)
+            {
+                await connection.CloseAsync();
+            }
+        }
+    }
+
+    private async Task<string> AllocateRepairOrderNumber()
+    {
+        var number = await AllocateRepairOrderSequenceNumber();
+        return $"RO-{number:D4}";
     }
 
     private async Task Recalculate(

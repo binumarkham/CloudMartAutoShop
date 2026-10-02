@@ -52,7 +52,7 @@
                         class="icon-button"
                         title="Close"
                         @onclick="CancelEdit">
-                    ×
+                    Ã—
                 </button>
             </div>
 
@@ -105,26 +105,26 @@
                                @bind-Value="edit.Vin" />
 
                     <small class="field-hint">
-                        Optional. Standard VINs contain 17 characters.
+                        Optional. Exactly 17 letters/numbers; I, O and Q are not used. Example: 2T3BFREV8GW456789
                     </small>
                 </div>
 
                 <div>
-                    <label>Year</label>
+                    <label>Year <span class="required">*</span></label>
 
                     <InputNumber class="form-control"
                                  @bind-Value="edit.Year" />
                 </div>
 
                 <div>
-                    <label>Make</label>
+                    <label>Make <span class="required">*</span></label>
 
                     <InputText class="form-control"
                                @bind-Value="edit.Make" />
                 </div>
 
                 <div>
-                    <label>Model</label>
+                    <label>Model <span class="required">*</span></label>
 
                     <InputText class="form-control"
                                @bind-Value="edit.Model" />
@@ -635,14 +635,14 @@
     {
         return value.HasValue
             ? value.Value.ToString("N0")
-            : "—";
+            : "â€”";
     }
 
     private static string Display(
         string? value)
     {
         return string.IsNullOrWhiteSpace(value)
-            ? "—"
+            ? "â€”"
             : value;
     }
 

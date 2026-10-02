@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace CloudMartAutoShop.Api.Models;
 
@@ -22,6 +22,9 @@ public class User
     [Required]
     [MaxLength(50)]
     public string Role { get; set; } = "User";
+
+    // Internal labor billing rate. Used only for Technician users.
+    public decimal? HourlyRate { get; set; }
 
     public bool IsActive { get; set; } = true;
 

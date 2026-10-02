@@ -3,6 +3,7 @@ using System;
 using CloudMartAutoShop.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CloudMartAutoShop.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261001200751_AddTechnicianHourlyRate")]
+    partial class AddTechnicianHourlyRate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -490,22 +493,6 @@ namespace CloudMartAutoShop.Api.Migrations
                     b.HasIndex("BusinessId", "SupplierId");
 
                     b.ToTable("RepairOrderParts");
-                });
-
-            modelBuilder.Entity("CloudMartAutoShop.Api.Models.RepairOrderSequence", b =>
-                {
-                    b.Property<int>("BusinessId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("BusinessId"));
-
-                    b.Property<int>("LastNumber")
-                        .HasColumnType("integer");
-
-                    b.HasKey("BusinessId");
-
-                    b.ToTable("RepairOrderSequences");
                 });
 
             modelBuilder.Entity("CloudMartAutoShop.Api.Models.Supplier", b =>

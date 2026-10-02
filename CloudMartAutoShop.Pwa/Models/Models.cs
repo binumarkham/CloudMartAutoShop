@@ -258,6 +258,7 @@ public class TechnicianDto
     public int Id { get; set; }
     public string Name { get; set; } = "";
     public string Email { get; set; } = "";
+    public decimal? HourlyRate { get; set; }
 }
 
 public class TechnicianRepairOrderDto
@@ -303,6 +304,7 @@ public class UserAdminDto
     public string Name { get; set; } = "";
     public string Email { get; set; } = "";
     public string Role { get; set; } = "Technician";
+    public decimal? HourlyRate { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
 }
@@ -313,6 +315,7 @@ public class UserSaveRequest
     public string Email { get; set; } = "";
     public string Role { get; set; } = "Technician";
     public string? Password { get; set; }
+    public decimal? HourlyRate { get; set; }
     public bool IsActive { get; set; } = true;
 }
 
@@ -458,4 +461,5 @@ public class PartSupplierSaveRequest
 public class CreateRepairOrderResponse
 {
     public int Id { get; set; }
+    public string RepairOrderNumber { get; set; } = "";
 }
